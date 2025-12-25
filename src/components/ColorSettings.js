@@ -27,9 +27,11 @@ export class ColorSettings extends BaseComponent {
 
     bindEvents() {
         // Single color picker
-        this.addListener(this.colorInput, 'input', (e) => {
-            this.setState({ color: e.target.value });
-        });
+        if (this.colorInput) {
+            this.addListener(this.colorInput, 'input', (e) => {
+                this.setState({ color: e.target.value });
+            });
+        }
 
         // Color mode radios
         this.colorModeRadios.forEach(radio => {
@@ -37,16 +39,23 @@ export class ColorSettings extends BaseComponent {
                 const colorMode = e.target.value;
                 this.setState({ colorMode });
 
-                // Show/hide palette area
-                this.customPaletteArea.style.display =
-                    colorMode === 'palette' ? 'block' : 'none';
+                // Show/hide palette area using class
+                if (this.customPaletteArea) {
+                    if (colorMode === 'palette') {
+                        this.customPaletteArea.classList.remove('hidden');
+                    } else {
+                        this.customPaletteArea.classList.add('hidden');
+                    }
+                }
             });
         });
 
         // Add palette color button
-        this.addListener(this.addPaletteColorBtn, 'click', () => {
-            this.addPaletteColor('#00ff00');
-        });
+        if (this.addPaletteColorBtn) {
+            this.addListener(this.addPaletteColorBtn, 'click', () => {
+                this.addPaletteColor('#00ff00');
+            });
+        }
 
         // Initialize existing palette listeners
         this.initPaletteListeners();
@@ -56,6 +65,8 @@ export class ColorSettings extends BaseComponent {
      * Initialize listeners for existing palette color inputs
      */
     initPaletteListeners() {
+        if (!this.paletteColorsContainer) return;
+
         const pickers = this.paletteColorsContainer.querySelectorAll('.paletteColor');
         pickers.forEach(picker => {
             this.addListener(picker, 'input', () => this.syncPaletteToState());
@@ -75,13 +86,14 @@ export class ColorSettings extends BaseComponent {
      * @param {string} defaultColor - Default hex color
      */
     addPaletteColor(defaultColor) {
+        if (!this.paletteColorsContainer) return;
+
         const item = document.createElement('div');
         item.className = 'palette-item';
-        item.style.cssText = 'position: relative;';
 
         item.innerHTML = `
-      <input type="color" class="paletteColor" value="${defaultColor}" style="height: 32px; width: 40px; cursor: pointer;">
-      <button class="remove-color-btn" style="position: absolute; top: -5px; right: -5px; width: 16px; height: 16px; border-radius: 50%; border: none; background: #ff4444; color: white; font-size: 10px; cursor: pointer; line-height: 1;">×</button>
+      <input type="color" class="paletteColor" value="${defaultColor}">
+      <button class="remove-color-btn">×</button>
     `;
 
         this.paletteColorsContainer.appendChild(item);
@@ -103,6 +115,8 @@ export class ColorSettings extends BaseComponent {
      * Sync palette UI to state
      */
     syncPaletteToState() {
+        if (!this.paletteColorsContainer) return;
+
         const pickers = this.paletteColorsContainer.querySelectorAll('.paletteColor');
         const customPalette = Array.from(pickers).map(p => p.value);
         this.setState({ customPalette });
@@ -111,16 +125,23 @@ export class ColorSettings extends BaseComponent {
     render() {
         const { color, colorMode } = this.state;
 
-        this.colorInput.value = color;
+        if (this.colorInput) {
+            this.colorInput.value = color;
+        }
 
         // Set correct radio button
         this.colorModeRadios.forEach(radio => {
             radio.checked = radio.value === colorMode;
         });
 
-        // Show/hide palette area
-        this.customPaletteArea.style.display =
-            colorMode === 'palette' ? 'block' : 'none';
+        // Show/hide palette area using classList
+        if (this.customPaletteArea) {
+            if (colorMode === 'palette') {
+                this.customPaletteArea.classList.remove('hidden');
+            } else {
+                this.customPaletteArea.classList.add('hidden');
+            }
+        }
     }
 }
 

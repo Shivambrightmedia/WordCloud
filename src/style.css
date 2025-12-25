@@ -195,6 +195,22 @@ header {
   text-align: right;
 }
 
+/* Processing Controls Group */
+.processing-controls {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.processing-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent-color);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+}
+
 
 .control-group label {
   font-size: 0.85rem;

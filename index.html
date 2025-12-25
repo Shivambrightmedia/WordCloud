@@ -137,46 +137,55 @@
                 </div>
               </div>
 
-              <!-- Threshold & Edges -->
-              <div class="control-group compact">
-                <label>Threshold</label>
-                <div class="slider-row">
-                  <input type="range" id="thresholdInput" min="0" max="100" value="44" step="1">
-                  <span class="slider-value" id="thresholdValue">44%</span>
-                </div>
-              </div>
-              <div class="control-group compact">
-                <label>Edges</label>
-                <div class="slider-row">
-                  <input type="range" id="edgesInput" min="0" max="10" value="2" step="1">
-                  <span class="slider-value" id="edgesValue">2</span>
-                </div>
-              </div>
-
-              <!-- Negative & Margin -->
-              <div class="control-group compact">
-                <label style="display: flex; align-items: center; gap: 8px;">
-                  <input type="checkbox" id="negativeToggle" style="width: 16px; height: 16px;">
-                  Negative
-                  <input type="color" id="negativeColor" value="#555555"
-                    style="height: 24px; width: 32px; margin-left: auto;">
-                </label>
-              </div>
-              <div class="control-group compact">
-                <label>Margin</label>
-                <div class="slider-row">
-                  <input type="range" id="marginInput" min="0" max="50" value="0" step="1">
-                  <span class="slider-value" id="marginValue">0%</span>
-                </div>
-              </div>
-
-              <!-- Preview Toggle -->
+              <!-- Preview Panel (before settings that affect it) -->
               <div class="control-group">
                 <button id="togglePreviewBtn" class="secondary-btn" style="width: 100%;">Show Preview</button>
               </div>
               <div id="imagePreviewPanel" class="preview-panel hidden">
                 <canvas id="previewCanvas" width="200" height="200"></canvas>
                 <button id="showOriginalBtn" class="mini-btn">Hold to see original</button>
+              </div>
+
+              <!-- Image Processing Controls (below preview) -->
+              <div class="processing-controls">
+                <div class="processing-label">Image Processing</div>
+
+                <!-- Threshold -->
+                <div class="control-group compact">
+                  <label>Threshold</label>
+                  <div class="slider-row">
+                    <input type="range" id="thresholdInput" min="0" max="100" value="44" step="1">
+                    <span class="slider-value" id="thresholdValue">44%</span>
+                  </div>
+                </div>
+
+                <!-- Edges -->
+                <div class="control-group compact">
+                  <label>Edges</label>
+                  <div class="slider-row">
+                    <input type="range" id="edgesInput" min="0" max="10" value="2" step="1">
+                    <span class="slider-value" id="edgesValue">2</span>
+                  </div>
+                </div>
+
+                <!-- Negative -->
+                <div class="control-group compact">
+                  <label style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" id="negativeToggle" style="width: 16px; height: 16px;">
+                    Negative
+                    <input type="color" id="negativeColor" value="#555555"
+                      style="height: 24px; width: 32px; margin-left: auto;">
+                  </label>
+                </div>
+
+                <!-- Margin -->
+                <div class="control-group compact">
+                  <label>Margin</label>
+                  <div class="slider-row">
+                    <input type="range" id="marginInput" min="0" max="50" value="0" step="1">
+                    <span class="slider-value" id="marginValue">0%</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
