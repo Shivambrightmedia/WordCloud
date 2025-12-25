@@ -1,0 +1,34 @@
+{
+  "name": "word-portrait-generator",
+  "version": "1.0.0",
+  "description": "Transform photos into beautiful word art portraits",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "echo 'Add ESLint when needed'",
+    "test": "echo 'Add tests when needed'"
+  },
+  "keywords": [
+    "word-art",
+    "portrait",
+    "typography",
+    "word-cloud",
+    "canvas"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "devDependencies": {
+    "vite": "^7.2.4"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not dead"
+  ]
+}
