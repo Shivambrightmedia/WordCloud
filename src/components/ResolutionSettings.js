@@ -52,7 +52,7 @@ export class ResolutionSettings extends BaseComponent {
         this.addListener(this.imageScaleInput, 'input', (e) => {
             const scale = parseInt(e.target.value);
             this.setState({ imageScale: scale });
-            this.scaleValue.textContent = `Scale: ${scale}%`;
+            if (this.scaleValue) this.scaleValue.textContent = `${scale}%`;
         });
 
         // Image offset X
@@ -116,48 +116,77 @@ export class ResolutionSettings extends BaseComponent {
      * Update offset values
      */
     updateOffset() {
-        const x = parseInt(this.imageOffsetXInput.value);
-        const y = parseInt(this.imageOffsetYInput.value);
+        const x = parseInt(this.imageOffsetXInput.value) || 0;
+        const y = parseInt(this.imageOffsetYInput.value) || 0;
 
         this.setState({ imageOffsetX: x, imageOffsetY: y });
-        this.offsetValue.textContent = `Offset: X=${x}, Y=${y}`;
+
+        // Update individual value displays if they exist
+        const offsetXValue = this.$('offsetXValue');
+        const offsetYValue = this.$('offsetYValue');
+        if (offsetXValue) offsetXValue.textContent = x;
+        if (offsetYValue) offsetYValue.textContent = y;
+        if (this.offsetValue) this.offsetValue.textContent = `Offset: X=${x}, Y=${y}`;
     }
 
     render() {
         const state = this.state;
 
         // Resolution
-        const resString = `${state.canvasWidth}x${state.canvasHeight}`;
-        let matched = false;
+        if (this.resolutionSelect) {
+            const resString = `${state.canvasWidth}x${state.canvasHeight}`;
+            let matched = false;
 
-        for (const opt of this.resolutionSelect.options) {
-            if (opt.value === resString) {
-                this.resolutionSelect.value = resString;
-                matched = true;
-                break;
+            for (const opt of this.resolutionSelect.options) {
+                if (opt.value === resString) {
+                    this.resolutionSelect.value = resString;
+                    matched = true;
+                    break;
+                }
+            }
+
+            if (!matched) {
+                this.resolutionSelect.value = 'custom';
+                if (this.customResolution) {
+                    this.customResolution.classList.remove('hidden');
+                    this.customWidth.value = state.canvasWidth;
+                    this.customHeight.value = state.canvasHeight;
+                }
+            } else if (this.customResolution) {
+                this.customResolution.classList.add('hidden');
             }
         }
 
-        if (!matched) {
-            this.resolutionSelect.value = 'custom';
-            this.customResolution.style.display = 'block';
-            this.customWidth.value = state.canvasWidth;
-            this.customHeight.value = state.canvasHeight;
-        } else {
-            this.customResolution.style.display = 'none';
+        // Scale and offset
+        if (this.imageScaleInput) {
+            this.imageScaleInput.value = state.imageScale;
+            if (this.scaleValue) this.scaleValue.textContent = `${state.imageScale}%`;
         }
 
-        // Scale and offset
-        this.imageScaleInput.value = state.imageScale;
-        this.scaleValue.textContent = `Scale: ${state.imageScale}%`;
+        if (this.imageOffsetXInput) {
+            this.imageOffsetXInput.value = state.imageOffsetX;
+            const offsetXValue = this.$('offsetXValue');
+            if (offsetXValue) offsetXValue.textContent = state.imageOffsetX;
+        }
 
-        this.imageOffsetXInput.value = state.imageOffsetX;
-        this.imageOffsetYInput.value = state.imageOffsetY;
-        this.offsetValue.textContent = `Offset: X=${state.imageOffsetX}, Y=${state.imageOffsetY}`;
+        if (this.imageOffsetYInput) {
+            this.imageOffsetYInput.value = state.imageOffsetY;
+            const offsetYValue = this.$('offsetYValue');
+            if (offsetYValue) offsetYValue.textContent = state.imageOffsetY;
+        }
 
         // Density and font size
-        this.densityInput.value = state.density;
-        this.fontSizeInput.value = state.fontSize;
+        if (this.densityInput) {
+            this.densityInput.value = state.density;
+            const densityValue = this.$('densityValue');
+            if (densityValue) densityValue.textContent = state.density;
+        }
+
+        if (this.fontSizeInput) {
+            this.fontSizeInput.value = state.fontSize;
+            const fontSizeValue = this.$('fontSizeValue');
+            if (fontSizeValue) fontSizeValue.textContent = state.fontSize;
+        }
     }
 }
 

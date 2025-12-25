@@ -21,6 +21,7 @@ import { createColorSettings } from '../components/ColorSettings.js';
 import { createResolutionSettings } from '../components/ResolutionSettings.js';
 import { createCanvasRenderer } from '../components/CanvasRenderer.js';
 import { createPresetPanel } from '../components/PresetPanel.js';
+import { createAccordion } from '../components/Accordion.js';
 
 export class App {
     constructor() {
@@ -61,6 +62,7 @@ export class App {
 
             // Initialize all components
             this.components = [
+                createAccordion(),  // Must be first to set up section toggling
                 createImageUploader(),
                 createImageCustomizer(),
                 createWordSettings(),

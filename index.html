@@ -21,18 +21,18 @@
 
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://wordportrait.app/" />
+  <meta property="og:url" content="https://wordclouddelight.netlify.app/" />
   <meta property="og:title" content="Word Portrait Generator | Create Stunning Typography Art" />
   <meta property="og:description"
     content="Transform your photos into beautiful word art portraits. Upload any image and watch it come alive with custom words." />
-  <meta property="og:image" content="https://wordportrait.app/og-image.png" />
+  <meta property="og:image" content="https://wordclouddelight.netlify.app/og-image.png" />
 
   <!-- Twitter -->
   <meta property="twitter:card" content="summary_large_image" />
-  <meta property="twitter:url" content="https://wordportrait.app/" />
+  <meta property="twitter:url" content="https://wordclouddelight.netlify.app/" />
   <meta property="twitter:title" content="Word Portrait Generator" />
   <meta property="twitter:description" content="Transform your photos into beautiful word art portraits." />
-  <meta property="twitter:image" content="https://wordportrait.app/og-image.png" />
+  <meta property="twitter:image" content="https://wordclouddelight.netlify.app/og-image.png" />
 
   <!-- Theme Color -->
   <meta name="theme-color" content="#764ba2" />
@@ -46,10 +46,6 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet" />
-
-  <!-- Preload critical assets -->
-  <link rel="preload" as="font" type="font/woff2"
-    href="https://fonts.gstatic.com/s/outfit/v11/QGYvz_MVcBeNP4NJtEtq.woff2" crossorigin />
 </head>
 
 <body>
@@ -60,268 +56,272 @@
     </header>
 
     <main class="workspace">
+      <!-- Accordion Sidebar -->
       <aside class="controls glass-panel">
-        <div class="control-group">
-          <label for="wordsInput">
-            <span class="icon">abc</span> Word Dictionary
-          </label>
-          <textarea id="wordsInput" placeholder="Enter words separated by commas..."
-            spellcheck="false">Love, Hope, Dream, Life, Art, Code, Future, Create, Vision, Soul</textarea>
-          <div class="help-text">Words will form the shadows of individual features.</div>
-        </div>
 
-        <div class="control-group">
-          <label for="heroWordsInput" style="color: #fbbf24;">
-            <span class="icon">⭐</span> Highlighted Words (Hero)
-          </label>
-          <textarea id="heroWordsInput" placeholder="Enter hero words (will appear BIGGER)..." spellcheck="false"
-            style="border-color: rgba(251, 191, 36, 0.3);"></textarea>
-          <div class="help-text" style="color: #a0a0a0;">These words will be prioritized for the largest text
-            placements.</div>
-        </div>
-
-        <div class="control-group">
-          <label>
-            <span class="icon">📷</span> Source Image
-          </label>
-          <div class="file-drop-area" id="dropArea">
-            <input type="file" id="imageUpload" accept="image/*" hidden>
-            <button class="upload-btn" onclick="document.getElementById('imageUpload').click()">Choose Image</button>
-            <span class="file-msg">or drop image here</span>
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- WORDS SECTION -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <div class="accordion-section" data-section="words">
+          <div class="accordion-header active" data-toggle="words">
+            <span class="accordion-icon">📝</span>
+            <span class="accordion-title">WORDS</span>
+            <span class="accordion-arrow">▼</span>
           </div>
-          <div id="imageName" class="file-name hidden"></div>
-        </div>
+          <div class="accordion-content open" id="section-words">
+            <div class="accordion-inner">
+              <div class="control-group">
+                <label for="wordsInput">Word Dictionary</label>
+                <textarea id="wordsInput" placeholder="Enter words separated by commas..."
+                  spellcheck="false">Love, Hope, Dream, Life, Art, Code, Future, Create, Vision, Soul</textarea>
+                <div class="help-text">Words will form the portrait.</div>
+              </div>
 
-        <!-- Image Transform Controls -->
-        <div class="control-group">
-          <label>Image Scale</label>
-          <div class="slider-container">
-            <span class="lbl-min">Zoom Out</span>
-            <input type="range" id="imageScaleInput" min="50" max="200" value="100" step="5">
-            <span class="lbl-max">Zoom In</span>
-          </div>
-          <div class="help-text" id="scaleValue">Scale: 100%</div>
-        </div>
-
-        <div class="control-group">
-          <label>Image Position</label>
-          <div style="display: flex; flex-direction: column; gap: 8px;">
-            <div class="slider-container">
-              <span class="lbl-min">← Left</span>
-              <input type="range" id="imageOffsetXInput" min="-500" max="500" value="0" step="10">
-              <span class="lbl-max">Right →</span>
-            </div>
-            <div class="slider-container">
-              <span class="lbl-min">↑ Up</span>
-              <input type="range" id="imageOffsetYInput" min="-500" max="500" value="0" step="10">
-              <span class="lbl-max">Down ↓</span>
+              <div class="control-group">
+                <label for="heroWordsInput" style="color: #fbbf24;">
+                  ⭐ Hero Words (Bigger)
+                </label>
+                <textarea id="heroWordsInput" placeholder="Enter hero words..." spellcheck="false"
+                  style="border-color: rgba(251, 191, 36, 0.3);"></textarea>
+                <div class="help-text">These words appear larger.</div>
+              </div>
             </div>
           </div>
-          <div class="help-text" id="offsetValue">Offset: X=0, Y=0</div>
         </div>
 
         <!-- ═══════════════════════════════════════════════════════════════ -->
-        <!-- IMAGE CUSTOMIZATION (Like WordArt.com) -->
+        <!-- SHAPE/IMAGE SECTION -->
         <!-- ═══════════════════════════════════════════════════════════════ -->
-        <div class="control-group image-customization-panel">
-          <label style="display: flex; align-items: center; gap: 8px;">
-            <span class="icon">🖼️</span> Image Customization
-            <button id="togglePreviewBtn" class="mini-btn"
-              style="margin-left: auto; font-size: 0.7rem; padding: 4px 8px;">
-              Show Preview
-            </button>
-          </label>
+        <div class="accordion-section" data-section="shape">
+          <div class="accordion-header" data-toggle="shape">
+            <span class="accordion-icon">📷</span>
+            <span class="accordion-title">SHAPE</span>
+            <span class="accordion-arrow">▶</span>
+          </div>
+          <div class="accordion-content" id="section-shape">
+            <div class="accordion-inner">
+              <!-- Image Upload -->
+              <div class="control-group">
+                <label>Source Image</label>
+                <div class="file-drop-area" id="dropArea">
+                  <input type="file" id="imageUpload" accept="image/*" hidden>
+                  <button class="upload-btn" onclick="document.getElementById('imageUpload').click()">Choose
+                    Image</button>
+                  <span class="file-msg">or drop here</span>
+                </div>
+                <div id="imageName" class="file-name hidden"></div>
+              </div>
 
-          <!-- Threshold Slider -->
-          <div class="customize-row">
-            <span class="customize-label">Threshold</span>
-            <button class="adjust-btn" data-target="thresholdInput" data-delta="-5">−</button>
-            <div class="slider-container" style="flex: 1;">
-              <input type="range" id="thresholdInput" min="0" max="100" value="44" step="1">
+              <!-- Image Scale -->
+              <div class="control-group compact">
+                <label>Scale</label>
+                <div class="slider-row">
+                  <input type="range" id="imageScaleInput" min="50" max="200" value="100" step="5">
+                  <span class="slider-value" id="scaleValue">100%</span>
+                </div>
+              </div>
+
+              <!-- Image Position -->
+              <div class="control-group compact">
+                <label>Position X</label>
+                <div class="slider-row">
+                  <input type="range" id="imageOffsetXInput" min="-500" max="500" value="0" step="10">
+                  <span class="slider-value" id="offsetXValue">0</span>
+                </div>
+              </div>
+              <div class="control-group compact">
+                <label>Position Y</label>
+                <div class="slider-row">
+                  <input type="range" id="imageOffsetYInput" min="-500" max="500" value="0" step="10">
+                  <span class="slider-value" id="offsetYValue">0</span>
+                </div>
+              </div>
+
+              <!-- Threshold & Edges -->
+              <div class="control-group compact">
+                <label>Threshold</label>
+                <div class="slider-row">
+                  <input type="range" id="thresholdInput" min="0" max="100" value="44" step="1">
+                  <span class="slider-value" id="thresholdValue">44%</span>
+                </div>
+              </div>
+              <div class="control-group compact">
+                <label>Edges</label>
+                <div class="slider-row">
+                  <input type="range" id="edgesInput" min="0" max="10" value="2" step="1">
+                  <span class="slider-value" id="edgesValue">2</span>
+                </div>
+              </div>
+
+              <!-- Negative & Margin -->
+              <div class="control-group compact">
+                <label style="display: flex; align-items: center; gap: 8px;">
+                  <input type="checkbox" id="negativeToggle" style="width: 16px; height: 16px;">
+                  Negative
+                  <input type="color" id="negativeColor" value="#555555"
+                    style="height: 24px; width: 32px; margin-left: auto;">
+                </label>
+              </div>
+              <div class="control-group compact">
+                <label>Margin</label>
+                <div class="slider-row">
+                  <input type="range" id="marginInput" min="0" max="50" value="0" step="1">
+                  <span class="slider-value" id="marginValue">0%</span>
+                </div>
+              </div>
+
+              <!-- Preview Toggle -->
+              <div class="control-group">
+                <button id="togglePreviewBtn" class="secondary-btn" style="width: 100%;">Show Preview</button>
+              </div>
+              <div id="imagePreviewPanel" class="preview-panel hidden">
+                <canvas id="previewCanvas" width="200" height="200"></canvas>
+                <button id="showOriginalBtn" class="mini-btn">Hold to see original</button>
+              </div>
             </div>
-            <span class="customize-value" id="thresholdValue">44%</span>
-            <button class="adjust-btn" data-target="thresholdInput" data-delta="5">+</button>
           </div>
+        </div>
 
-          <!-- Edges Slider -->
-          <div class="customize-row">
-            <span class="customize-label">Edges</span>
-            <button class="adjust-btn" data-target="edgesInput" data-delta="-1">−</button>
-            <div class="slider-container" style="flex: 1;">
-              <input type="range" id="edgesInput" min="0" max="10" value="2" step="1">
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- COLORS SECTION -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <div class="accordion-section" data-section="colors">
+          <div class="accordion-header" data-toggle="colors">
+            <span class="accordion-icon">🎨</span>
+            <span class="accordion-title">COLORS</span>
+            <span class="accordion-arrow">▶</span>
+          </div>
+          <div class="accordion-content" id="section-colors">
+            <div class="accordion-inner">
+              <!-- Color Mode Options -->
+              <label class="color-option">
+                <input type="radio" name="colorMode" value="source" id="colorModeSource" checked>
+                <span>Source Image Colors</span>
+              </label>
+              <label class="color-option">
+                <input type="radio" name="colorMode" value="single" id="colorModeSingle">
+                <span>Single Color</span>
+                <input type="color" id="colorInput" value="#000000"
+                  style="height: 24px; width: 40px; margin-left: auto;">
+              </label>
+              <label class="color-option">
+                <input type="radio" name="colorMode" value="random" id="colorModeRandom">
+                <span>Random Colors</span>
+              </label>
+              <label class="color-option">
+                <input type="radio" name="colorMode" value="palette" id="colorModePalette">
+                <span>Custom Palette</span>
+              </label>
+
+              <!-- Custom Palette -->
+              <div id="customPaletteArea" class="palette-area hidden">
+                <div id="paletteColorsContainer" class="palette-colors">
+                  <div class="palette-item">
+                    <input type="color" class="paletteColor" value="#ff0000">
+                    <button class="remove-color-btn">×</button>
+                  </div>
+                  <div class="palette-item">
+                    <input type="color" class="paletteColor" value="#0066ff">
+                    <button class="remove-color-btn">×</button>
+                  </div>
+                </div>
+                <button id="addPaletteColorBtn" class="add-color-btn">+ Add Color</button>
+              </div>
             </div>
-            <span class="customize-value" id="edgesValue">2</span>
-            <button class="adjust-btn" data-target="edgesInput" data-delta="1">+</button>
           </div>
+        </div>
 
-          <!-- Negative Toggle -->
-          <div class="customize-row" style="margin-top: 8px;">
-            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; flex: 1;">
-              <input type="checkbox" id="negativeToggle" style="width: 16px; height: 16px;">
-              <span style="font-size: 0.85rem; color: #a0a0a0;">Negative</span>
-            </label>
-            <span style="font-size: 0.8rem; color: #666;">Color</span>
-            <input type="color" id="negativeColor" value="#555555"
-              style="height: 28px; width: 40px; cursor: pointer; margin-left: 8px;">
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- LAYOUT SECTION -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <div class="accordion-section" data-section="layout">
+          <div class="accordion-header" data-toggle="layout">
+            <span class="accordion-icon">📐</span>
+            <span class="accordion-title">LAYOUT</span>
+            <span class="accordion-arrow">▶</span>
           </div>
+          <div class="accordion-content" id="section-layout">
+            <div class="accordion-inner">
+              <!-- Word Density -->
+              <div class="control-group compact">
+                <label>Word Density</label>
+                <div class="slider-row">
+                  <input type="range" id="densityInput" min="0" max="255" value="120" step="5">
+                  <span class="slider-value" id="densityValue">120</span>
+                </div>
+              </div>
 
-          <!-- Margin Slider -->
-          <div class="customize-row">
-            <span class="customize-label">Margin</span>
-            <button class="adjust-btn" data-target="marginInput" data-delta="-5">−</button>
-            <div class="slider-container" style="flex: 1;">
-              <input type="range" id="marginInput" min="0" max="50" value="0" step="1">
+              <!-- Font Scale -->
+              <div class="control-group compact">
+                <label>Font Size</label>
+                <div class="slider-row">
+                  <input type="range" id="fontSizeInput" min="10" max="80" value="24" step="1">
+                  <span class="slider-value" id="fontSizeValue">24</span>
+                </div>
+              </div>
+
+              <!-- Resolution -->
+              <div class="control-group">
+                <label for="resolutionSelect">Output Resolution</label>
+                <select id="resolutionSelect">
+                  <option value="1200x1800">4×6 (1200×1800) Photo</option>
+                  <option value="2400x3600" selected>4×6 (2400×3600) HQ</option>
+                  <option value="1800x2700">5×7.5 (1800×2700)</option>
+                  <option value="2400x3000">8×10 (2400×3000)</option>
+                  <option value="3000x4500">10×15 (3000×4500) Poster</option>
+                  <option value="custom">Custom...</option>
+                </select>
+                <div id="customResolution" class="custom-res hidden">
+                  <input type="number" id="customWidth" placeholder="Width" value="2400" min="100" max="10000">
+                  <span>×</span>
+                  <input type="number" id="customHeight" placeholder="Height" value="3600" min="100" max="10000">
+                </div>
+              </div>
             </div>
-            <span class="customize-value" id="marginValue">0%</span>
-            <button class="adjust-btn" data-target="marginInput" data-delta="5">+</button>
           </div>
+        </div>
 
-          <!-- Live Preview Panel -->
-          <div id="imagePreviewPanel" class="preview-panel hidden">
-            <canvas id="previewCanvas" width="200" height="200"></canvas>
-            <div class="preview-actions">
-              <button id="showOriginalBtn" class="secondary-btn" style="font-size: 0.75rem; padding: 6px 12px;">
-                Show original image
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- PRESETS SECTION -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <div class="accordion-section" data-section="presets">
+          <div class="accordion-header" data-toggle="presets">
+            <span class="accordion-icon">💾</span>
+            <span class="accordion-title">PRESETS</span>
+            <span class="accordion-arrow">▶</span>
+          </div>
+          <div class="accordion-content" id="section-presets">
+            <div class="accordion-inner">
+              <button id="savePresetBtn" class="secondary-btn" style="width: 100%; margin-bottom: 8px;">
+                💾 Save Current Settings
               </button>
-            </div>
-          </div>
-
-          <div class="help-text" style="margin-top: 8px;">
-            Adjust threshold to control what becomes white. Use edges for sharper contours.
-          </div>
-        </div>
-        <!-- END IMAGE CUSTOMIZATION -->
-
-        <!-- Hidden canvas for processing -->
-        <canvas id="processingCanvas" style="display: none;"></canvas>
-
-        <div class="control-group">
-          <label>Word Density</label>
-          <div class="slider-container">
-            <span class="lbl-min">Sparse</span>
-            <input type="range" id="densityInput" min="0" max="255" value="120" step="5">
-            <span class="lbl-max">Dense</span>
-          </div>
-          <div class="help-text">Controls how many words fill the portrait.</div>
-        </div>
-
-        <div class="control-group">
-          <label for="fontSizeInput">Font Scale</label>
-          <div class="slider-container">
-            <span class="lbl-min">Fine</span>
-            <input type="range" id="fontSizeInput" min="10" max="80" value="24" step="1">
-            <span class="lbl-max">Bold</span>
-          </div>
-        </div>
-
-        <div class="control-group">
-          <label>Color Mode</label>
-
-          <!-- Single Color -->
-          <label style="display: flex; align-items: center; gap: 8px; margin-top: 8px; cursor: pointer;">
-            <input type="radio" name="colorMode" value="single" id="colorModeSingle" style="width: 16px; height: 16px;">
-            <span style="font-size: 0.85rem; color: #a0a0a0;">Single Color</span>
-            <input type="color" id="colorInput" value="#000000"
-              style="height: 28px; width: 50px; cursor: pointer; margin-left: auto;">
-          </label>
-
-          <!-- Source Image Colors -->
-          <label style="display: flex; align-items: center; gap: 8px; margin-top: 5px; cursor: pointer;">
-            <input type="radio" name="colorMode" value="source" id="colorModeSource" style="width: 16px; height: 16px;"
-              checked>
-            <span style="font-size: 0.85rem; color: #a0a0a0;">Use Source Image Colors (Realistic)</span>
-          </label>
-
-          <!-- Random Colors -->
-          <label style="display: flex; align-items: center; gap: 8px; margin-top: 5px; cursor: pointer;">
-            <input type="radio" name="colorMode" value="random" id="colorModeRandom" style="width: 16px; height: 16px;">
-            <span style="font-size: 0.85rem; color: #a0a0a0;">Mix Colors (Random)</span>
-          </label>
-
-          <!-- Custom Palette -->
-          <label style="display: flex; align-items: center; gap: 8px; margin-top: 5px; cursor: pointer;">
-            <input type="radio" name="colorMode" value="palette" id="colorModePalette"
-              style="width: 16px; height: 16px;">
-            <span style="font-size: 0.85rem; color: #a0a0a0;">Custom Palette</span>
-          </label>
-          <div id="customPaletteArea"
-            style="display: none; margin-top: 8px; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 8px;">
-            <div id="paletteColorsContainer" style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
-              <div class="palette-item" style="position: relative;">
-                <input type="color" class="paletteColor" value="#ff0000"
-                  style="height: 32px; width: 40px; cursor: pointer;">
-                <button class="remove-color-btn"
-                  style="position: absolute; top: -5px; right: -5px; width: 16px; height: 16px; border-radius: 50%; border: none; background: #ff4444; color: white; font-size: 10px; cursor: pointer; line-height: 1;">×</button>
+              <div class="preset-row">
+                <select id="presetSelect">
+                  <option value="">(No Preset Selected)</option>
+                </select>
+                <button id="loadPresetBtn" class="icon-btn" title="Load">📂</button>
+                <button id="deletePresetBtn" class="icon-btn danger" title="Delete">🗑️</button>
               </div>
-              <div class="palette-item" style="position: relative;">
-                <input type="color" class="paletteColor" value="#0066ff"
-                  style="height: 32px; width: 40px; cursor: pointer;">
-                <button class="remove-color-btn"
-                  style="position: absolute; top: -5px; right: -5px; width: 16px; height: 16px; border-radius: 50%; border: none; background: #ff4444; color: white; font-size: 10px; cursor: pointer; line-height: 1;">×</button>
-              </div>
-            </div>
-            <button id="addPaletteColorBtn"
-              style="margin-top: 8px; padding: 5px 10px; background: rgba(255,255,255,0.1); border: 1px dashed rgba(255,255,255,0.3); border-radius: 4px; color: #a0a0a0; cursor: pointer; font-size: 0.75rem;">+
-              Add Color</button>
-            <div class="help-text" style="margin-top: 5px;">Click on colors to change them. Remove any you don't need.
+              <div id="presetDetails" class="help-text">Select a preset to view details...</div>
             </div>
           </div>
         </div>
 
-        <div class="control-group">
-          <label for="resolutionSelect">Output Resolution</label>
-          <select id="resolutionSelect"
-            style="width: 100%; padding: 10px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: white; cursor: pointer;">
-            <option value="1200x1800">4×6 inches (1200×1800) - Photo</option>
-            <option value="2400x3600" selected>4×6 inches (2400×3600) - HQ Print</option>
-            <option value="1800x2700">5×7.5 inches (1800×2700)</option>
-            <option value="2400x3000">8×10 inches (2400×3000)</option>
-            <option value="3000x4500">10×15 inches (3000×4500) - Poster</option>
-            <option value="custom">Custom...</option>
-          </select>
-          <div id="customResolution" style="display: none; margin-top: 10px;">
-            <div style="display: flex; gap: 10px;">
-              <input type="number" id="customWidth" placeholder="Width (px)" value="2400" min="100" max="10000"
-                style="flex:1; padding: 8px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: white;">
-              <span style="color: #a0a0a0; align-self: center;">×</span>
-              <input type="number" id="customHeight" placeholder="Height (px)" value="3600" min="100" max="10000"
-                style="flex:1; padding: 8px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: white;">
-            </div>
-          </div>
-        </div>
-
-        <div class="control-group">
-          <label>Presets</label>
-          <button id="savePresetBtn" class="secondary-btn"
-            style="width: 100%; font-size: 0.8rem; padding: 10px; margin-bottom: 8px;">
-            💾 Save Current Settings
-          </button>
-
-          <div style="display: flex; gap: 6px;">
-            <select id="presetSelect"
-              style="flex: 1; padding: 8px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: white;">
-              <option value="">(No Preset Selected)</option>
-            </select>
-            <button id="loadPresetBtn" class="secondary-btn" style="padding: 8px 12px;" title="Load">📂</button>
-            <button id="deletePresetBtn" class="secondary-btn"
-              style="padding: 8px 12px; border-color: #ff4444; color: #ff4444;" title="Delete">🗑️</button>
-          </div>
-          <div id="presetDetails"
-            style="font-size: 0.75rem; color: #a0a0a0; margin-top: 5px; min-height: 1.2em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-            Select a preset to view details...
-          </div>
-        </div>
-
-        <div class="actions">
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- ACTION BUTTONS (Always Visible) -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <div class="actions-fixed">
           <button id="generateBtn" class="primary-btn pulse">
-            <span class="btn-text">Generate Portrait</span>
+            ✨ Generate Portrait
           </button>
           <button id="downloadBtn" class="secondary-btn" disabled>
-            <span class="icon">↓</span> Download High-Res (PNG)
+            ↓ Download PNG
           </button>
         </div>
+
       </aside>
 
+      <!-- Canvas Area -->
       <section class="preview-area">
         <div class="canvas-containment">
           <canvas id="mainCanvas"></canvas>
@@ -337,7 +337,12 @@
         </div>
       </section>
     </main>
+
+    <!-- Hidden Elements -->
+    <canvas id="processingCanvas" style="display: none;"></canvas>
+    <div id="offsetValue" style="display: none;">Offset: X=0, Y=0</div>
   </div>
+
   <script type="module" src="/src/main.js"></script>
 </body>
 
