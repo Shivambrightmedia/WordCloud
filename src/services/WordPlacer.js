@@ -25,11 +25,10 @@ const DEFAULT_SIZE_TIERS = [
     { scale: 2.0, attempts: 20000, padding: 1, minClearanceFactor: 0.35 },
     { scale: 1.4, attempts: 40000, padding: 1, minClearanceFactor: 0.28 },
     { scale: 1.0, attempts: 65000, padding: 1, minClearanceFactor: 0.20 },
-    { scale: 0.70, attempts: 90000, padding: 0, minClearanceFactor: 0.14 },
-    { scale: 0.48, attempts: 130000, padding: 0, minClearanceFactor: 0.08 },
-    { scale: 0.32, attempts: 160000, padding: 0, minClearanceFactor: 0.04 },
-    { scale: 0.22, attempts: 190000, padding: 0, minClearanceFactor: 0.02 },
-    { scale: 0.15, attempts: 220000, padding: 0, minClearanceFactor: 0.01 }
+    { scale: 0.70, attempts: 90000, padding: 0, minClearanceFactor: 0.12 },
+    { scale: 0.50, attempts: 130000, padding: 0, minClearanceFactor: 0.06 },
+    { scale: 0.38, attempts: 160000, padding: 0, minClearanceFactor: 0.0, isThinEdge: true },
+    { scale: 0.25, attempts: 200000, padding: 0, minClearanceFactor: 0.0, isThinEdge: true }
 ];
 
 export class WordPlacer {
@@ -257,7 +256,8 @@ export class WordPlacer {
     }
 
     /**
-     * Check if entire word fits cleanly inside the mask (checks 11 sample points)
+     * Check if entire word fits inside the mask
+     * For thin lines/collar strokes (isThinEdge = true), only checks the center line so words can trace along thin strokes
      * @param {Uint8ClampedArray} data - Image data
      * @param {number} cx - Center X
      * @param {number} cy - Center Y
@@ -265,9 +265,15 @@ export class WordPlacer {
      * @param {number} boxH - Box height
      * @param {number} width - Canvas width
      * @param {number} density - Density threshold
+     * @param {boolean} isThinEdge - Whether placing on thin edge/contour
      * @returns {boolean} True if word fits
      */
-    checkPlacementBounds(data, cx, cy, boxW, boxH, width, density) {
+    checkPlacementBounds(data, cx, cy, boxW, boxH, width, density, isThinEdge = false) {
+        if (isThinEdge) {
+            // For thin lines / collar contours: check center and mid-points
+            return imageProcessor.checkMask(data, cx, cy, width, density);
+        }
+
         const halfW = boxW / 2;
         const halfH = boxH / 2;
         const startX = Math.floor(cx - halfW);
@@ -382,7 +388,7 @@ export class WordPlacer {
         // Step 3: Process each size tier from largest to smallest
         for (const tier of this.sizeTiers) {
             let fontSizePx = Math.floor(fontSize * tier.scale);
-            if (fontSizePx < 7) fontSizePx = 7;
+            if (fontSizePx < 15) fontSizePx = 15;
             if (fontSizePx > width * 0.85) fontSizePx = Math.floor(width * 0.85);
 
             const font = `${fontWeight} ${fontSizePx}px '${fontFamily}'`;
@@ -390,9 +396,10 @@ export class WordPlacer {
             metricsCtx.font = font;
 
             const isGiantTier = tier.isGiant || tier.scale >= 2.5;
+            const isThinEdge = tier.isThinEdge || tier.scale <= 0.38;
             const tierPadding = tier.padding !== undefined ? tier.padding : (tier.scale >= 2.0 ? 1 : 0);
-            const minClearanceFactor = tier.minClearanceFactor || 0.25;
-            const requiredClearance = Math.max(2, Math.floor(fontSizePx * minClearanceFactor));
+            const minClearanceFactor = isThinEdge ? 0 : (tier.minClearanceFactor || 0.25);
+            const requiredClearance = Math.floor(fontSizePx * minClearanceFactor);
             const attempts = tier.attempts;
 
             for (let i = 0; i < attempts; i++) {
@@ -401,7 +408,7 @@ export class WordPlacer {
                 const posIdx = ry * width + rx;
 
                 // SPACE-FITTING CHECK: Location MUST have enough distance to edge for this font size!
-                if (distMap[posIdx] < requiredClearance) continue;
+                if (requiredClearance > 0 && distMap[posIdx] < requiredClearance) continue;
 
                 // Check brightness threshold: giant words only in solid dark areas
                 if (isGiantTier) {
@@ -423,8 +430,8 @@ export class WordPlacer {
                 const boxW = Math.ceil(measure.width);
                 const boxH = Math.ceil(fontSizePx * 0.82);
 
-                // Multi-point boundary check: entire word rectangle must stay inside mask
-                if (!this.checkPlacementBounds(imageData, rx, ry, boxW, boxH, width, density)) continue;
+                // Multi-point boundary check (relaxed for thin edge / collar line tiers)
+                if (!this.checkPlacementBounds(imageData, rx, ry, boxW, boxH, width, density, isThinEdge)) continue;
 
                 // Collision check against already placed words
                 if (!this.checkCollision(grid, rx, ry, boxW, boxH, width, height)) {
@@ -432,17 +439,64 @@ export class WordPlacer {
                     const pixelColor = imageProcessor.getPixelColor(imageData, rx, ry, width);
                     const wordColor = this.getWordColor(colorMode, pixelColor, color, customPalette, word, wordColors);
 
-                    // Shading based on brightness
-                    const alpha = colorMode === 'source' ? 1.0 : (1 - (pixelColor.brightness / 255));
+                    // Shading based on brightness: light face areas get low alpha (0.12 - 0.35), dark areas get full alpha (0.8 - 1.0)
+                    let alpha;
+                    if (colorMode === 'source') {
+                        alpha = 1.0;
+                    } else {
+                        const darkness = 1 - (pixelColor.brightness / 255);
+                        alpha = Math.max(0.15, Math.min(1.0, darkness * 1.15));
+                    }
 
                     // Draw word
-                    ctx.fillStyle = `rgba(${wordColor.r}, ${wordColor.g}, ${wordColor.b}, ${Math.max(0.2, alpha).toFixed(2)})`;
+                    ctx.fillStyle = `rgba(${wordColor.r}, ${wordColor.g}, ${wordColor.b}, ${alpha.toFixed(2)})`;
                     ctx.fillText(word, rx, ry);
 
                     // Mark grid with glyph stroke accuracy so smaller words can nest around & beside
                     this.markGridGlyphs(grid, word, font, rx, ry, boxW, boxH, width, height, tierPadding);
 
                     placedCount[word] = (placedCount[word] || 0) + 1;
+                }
+            }
+        }
+
+        // Step 4: Thin Line & Shirt Collar Sweep
+        // Directly detects unvisited thin line/collar pixels and places micro-words along them
+        const edgeWords = words.length > 0 ? words : ['Art', 'Life', 'Soul', 'Code'];
+        const edgeFontSizePx = Math.max(15, Math.floor(fontSize * 0.25));
+        const edgeFont = `${fontWeight} ${edgeFontSizePx}px '${fontFamily}'`;
+        ctx.font = edgeFont;
+        metricsCtx.font = edgeFont;
+
+        const stepY = Math.max(4, Math.floor(edgeFontSizePx * 0.7));
+        const stepX = Math.max(6, Math.floor(edgeFontSizePx * 1.1));
+
+        for (let y = 4; y < height - 4; y += stepY) {
+            const rowIdx = y * width;
+            for (let x = 4; x < width - 4; x += stepX) {
+                const posIdx = rowIdx + x;
+
+                // Check if this pixel is a dark stroke pixel that hasn't received any word yet
+                if (grid[posIdx] === 0 && imageProcessor.checkMask(imageData, x, y, width, density)) {
+                    const pixelColor = imageProcessor.getPixelColor(imageData, x, y, width);
+                    // Dark line / collar stroke
+                    if (pixelColor.brightness < 185) {
+                        const word = edgeWords[Math.floor(Math.random() * edgeWords.length)];
+                        const measure = metricsCtx.measureText(word);
+                        const boxW = Math.ceil(measure.width);
+                        const boxH = Math.ceil(edgeFontSizePx * 0.82);
+
+                        if (!this.checkCollision(grid, x, y, boxW, boxH, width, height)) {
+                            const wordColor = this.getWordColor(colorMode, pixelColor, color, customPalette, word, wordColors);
+                            const darkness = 1 - (pixelColor.brightness / 255);
+                            const alpha = colorMode === 'source' ? 1.0 : Math.max(0.40, Math.min(1.0, darkness * 1.2));
+
+                            ctx.fillStyle = `rgba(${wordColor.r}, ${wordColor.g}, ${wordColor.b}, ${alpha.toFixed(2)})`;
+                            ctx.fillText(word, x, y);
+
+                            this.markGridBox(grid, x, y, boxW, boxH, width, height, 0);
+                        }
+                    }
                 }
             }
         }

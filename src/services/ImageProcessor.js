@@ -193,17 +193,18 @@ export class ImageProcessor {
      * @param {number} density - Density threshold
      * @returns {boolean} Whether the position is valid for word placement
      */
-    checkMask(data, x, y, width, density) {
+    checkMask(data, x, y, width, density = 248) {
         const idx = (Math.floor(y) * width + Math.floor(x)) * 4;
 
         if (idx < 0 || idx >= data.length) return false;
 
-        // Check alpha
+        // Check alpha (transparent pixels are background)
         if (data[idx + 3] < 10) return false;
 
-        // Check brightness
+        // Check brightness: allow text placement on light face areas (< 248)
         const brightness = calculateBrightness(data[idx], data[idx + 1], data[idx + 2]);
-        return brightness < density;
+        const maxThreshold = Math.max(density, 246);
+        return brightness < maxThreshold;
     }
 
     /**
