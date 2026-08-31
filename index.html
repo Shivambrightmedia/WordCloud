@@ -6,8 +6,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
   <!-- Primary Meta Tags -->
-  <title>Word Portrait Generator | Create Stunning Typography Art</title>
-  <meta name="title" content="Word Portrait Generator | Create Stunning Typography Art" />
+  <title>Word Portrait Generator</title>
+  <script>
+    // Unregister foreign service workers from previous projects on this port
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function(regs) {
+        for (var r of regs) { r.unregister(); }
+      });
+    }
+  </script>
+  <meta name="title" content="Word Portrait Generator" />
   <meta name="description"
     content="Transform your photos into beautiful word art portraits. Upload any image and watch it come alive with custom words, colors, and effects. Free online tool." />
   <meta name="keywords"
@@ -45,14 +53,16 @@
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Roboto:wght@400;700;900&family=Montserrat:wght@400;600;700;800;900&family=Playfair+Display:wght@400;700;900&family=Oswald:wght@400;500;600;700&family=Bebas+Neue&family=Pacifico&family=Lobster&family=Dancing+Script:wght@400;700&family=Permanent+Marker&family=Anton&family=Bangers&family=Righteous&family=Russo+One&family=Orbitron:wght@400;700;900&display=swap"
+    rel="stylesheet" />
 </head>
 
 <body>
   <div id="app">
     <header>
-      <div class="logo">WordPortrait<span class="dot">.</span></div>
-      <p class="tagline">Turn faces into typography.</p>
+      <div class="logo">Word Cloud<span class="dot">.</span></div>
+      <!-- <p class="tagline">Turn faces into typography.</p> -->
     </header>
 
     <main class="workspace">
@@ -69,15 +79,69 @@
             <span class="accordion-arrow">▼</span>
           </div>
           <div class="accordion-content open" id="section-words">
-            <div class="accordion-inner">
-              <div class="control-group">
-                <label for="wordsInput">Word Dictionary</label>
-                <textarea id="wordsInput" placeholder="Enter words separated by commas..."
-                  spellcheck="false">Love, Hope, Dream, Life, Art, Code, Future, Create, Vision, Soul</textarea>
-                <div class="help-text">Words will form the portrait.</div>
+            <div class="accordion-inner words-panel">
+              <!-- Words Toolbar -->
+              <div class="words-toolbar">
+                <button id="wordsImportBtn" class="words-toolbar-btn" title="Import words">
+                  📋 Import
+                </button>
+                <button id="wordsAddBtn" class="words-toolbar-btn" title="Add word">
+                  ➕ Add
+                </button>
+                <button id="wordsRemoveBtn" class="words-toolbar-btn" title="Remove selected">
+                  ➖ Remove
+                </button>
+                <button id="wordsMoveUpBtn" class="words-toolbar-btn" title="Move up">
+                  ⬆ Up
+                </button>
+                <button id="wordsMoveDownBtn" class="words-toolbar-btn" title="Move down">
+                  ⬇ Down
+                </button>
+                <div class="words-toolbar-dropdown">
+                  <button id="wordsActionsBtn" class="words-toolbar-btn" title="More actions">
+                    ⋮ Actions ▾
+                  </button>
+                  <div id="wordsActionsMenu" class="words-dropdown-menu">
+                    <div class="dropdown-item">
+                      <label>Set Color for Selected:</label>
+                      <input type="color" id="bulkColorPicker" value="#ff00ff">
+                    </div>
+                    <button class="dropdown-item" id="selectAllAction">Select All</button>
+                    <button class="dropdown-item" id="deselectAllAction">Deselect All</button>
+                    <button class="dropdown-item" id="clearAllAction">Clear All Words</button>
+                  </div>
+                </div>
               </div>
 
-              <div class="control-group">
+              <!-- Words Table -->
+              <div id="wordsTableContainer" class="words-table-container">
+                <table class="words-table">
+                  <thead>
+                    <tr>
+                      <th class="col-select">
+                        <input type="checkbox" id="selectAllWords" title="Select all">
+                      </th>
+                      <th class="col-text">Text</th>
+                      <th class="col-size" title="Word Size Multiplier (1-10)">Size</th>
+                      <th class="col-color">Color</th>
+                      <th class="col-repeat">
+                        <span title="Include word in portrait">✓ Repeat</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody id="wordsTableBody">
+                    <!-- Words will be rendered here dynamically -->
+                  </tbody>
+                </table>
+
+                <!-- New Word Input Row -->
+                <div class="new-word-row">
+                  <input type="text" id="newWordInput" placeholder="Type in a new word" class="new-word-input">
+                </div>
+              </div>
+
+              <!-- Hero Words (kept for larger display) -->
+              <div class="control-group hero-words-group">
                 <label for="heroWordsInput" style="color: #fbbf24;">
                   ⭐ Hero Words (Bigger)
                 </label>
@@ -105,9 +169,12 @@
                 <label>Source Image</label>
                 <div class="file-drop-area" id="dropArea">
                   <input type="file" id="imageUpload" accept="image/*" hidden>
-                  <button class="upload-btn" onclick="document.getElementById('imageUpload').click()">Choose
-                    Image</button>
-                  <span class="file-msg">or drop here</span>
+                  <div class="upload-buttons">
+                    <button class="upload-btn" onclick="document.getElementById('imageUpload').click()">📁 Choose
+                      Image</button>
+                    <button class="upload-btn camera-btn" id="cameraBtn">📷 Camera</button>
+                  </div>
+                  <span class="file-msg">or drop file here</span>
                 </div>
                 <div id="imageName" class="file-name hidden"></div>
               </div>
@@ -192,6 +259,81 @@
         </div>
 
         <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- OVERLAY/LOGO SECTION -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <div class="accordion-section" data-section="overlay">
+          <div class="accordion-header" data-toggle="overlay">
+            <span class="accordion-icon">🏷️</span>
+            <span class="accordion-title">OVERLAY / LOGO</span>
+            <span class="accordion-arrow">▶</span>
+          </div>
+          <div class="accordion-content" id="section-overlay">
+            <div class="accordion-inner">
+              <!-- Logo Upload -->
+              <div class="control-group">
+                <label>Logo Image (PNG)</label>
+                <div class="logo-upload-area">
+                  <div id="logoPreviewContainer" class="logo-preview-container hidden">
+                    <img id="logoPreview" class="logo-preview-img" alt="Logo preview">
+                    <button id="removeLogoBtn" class="remove-logo-btn" title="Remove logo">✕</button>
+                  </div>
+                  <label class="upload-logo-btn" for="logoInput">
+                    <span class="upload-icon">📁</span>
+                    <span id="logoUploadText">Upload Logo (PNG)</span>
+                  </label>
+                  <input type="file" id="logoInput" accept=".png,image/png" hidden>
+                </div>
+              </div>
+
+              <!-- Logo Position -->
+              <div id="logoControls" class="logo-controls hidden">
+                <div class="control-group compact">
+                  <label>Position</label>
+                  <div class="position-grid">
+                    <button class="pos-btn" data-pos="top-left" title="Top Left">↖</button>
+                    <button class="pos-btn" data-pos="top-center" title="Top Center">↑</button>
+                    <button class="pos-btn" data-pos="top-right" title="Top Right">↗</button>
+                    <button class="pos-btn" data-pos="center-left" title="Center Left">←</button>
+                    <button class="pos-btn active" data-pos="center" title="Center">●</button>
+                    <button class="pos-btn" data-pos="center-right" title="Center Right">→</button>
+                    <button class="pos-btn" data-pos="bottom-left" title="Bottom Left">↙</button>
+                    <button class="pos-btn" data-pos="bottom-center" title="Bottom Center">↓</button>
+                    <button class="pos-btn" data-pos="bottom-right" title="Bottom Right">↘</button>
+                  </div>
+                </div>
+
+                <!-- Logo Scale -->
+                <div class="control-group compact">
+                  <label>Logo Size</label>
+                  <div class="slider-row">
+                    <input type="range" id="logoScaleInput" min="5" max="100" value="30" step="1">
+                    <span class="slider-value" id="logoScaleValue">30%</span>
+                  </div>
+                </div>
+
+                <!-- Logo Opacity -->
+                <div class="control-group compact">
+                  <label>Opacity</label>
+                  <div class="slider-row">
+                    <input type="range" id="logoOpacityInput" min="10" max="100" value="100" step="5">
+                    <span class="slider-value" id="logoOpacityValue">100%</span>
+                  </div>
+                </div>
+
+                <!-- Logo Offset -->
+                <div class="control-group compact">
+                  <label>Offset (px)</label>
+                  <div class="offset-inputs">
+                    <input type="number" id="logoOffsetX" value="0" placeholder="X">
+                    <input type="number" id="logoOffsetY" value="0" placeholder="Y">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════════════ -->
         <!-- COLORS SECTION -->
         <!-- ═══════════════════════════════════════════════════════════════ -->
         <div class="accordion-section" data-section="colors">
@@ -221,6 +363,10 @@
                 <input type="radio" name="colorMode" value="palette" id="colorModePalette">
                 <span>Custom Palette</span>
               </label>
+              <label class="color-option">
+                <input type="radio" name="colorMode" value="perWord" id="colorModePerWord">
+                <span>🎯 Per Word Colors</span>
+              </label>
 
               <!-- Custom Palette -->
               <div id="customPaletteArea" class="palette-area hidden">
@@ -235,6 +381,139 @@
                   </div>
                 </div>
                 <button id="addPaletteColorBtn" class="add-color-btn">+ Add Color</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- FONTS SECTION -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <div class="accordion-section" data-section="fonts">
+          <div class="accordion-header" data-toggle="fonts">
+            <span class="accordion-icon">🔤</span>
+            <span class="accordion-title">FONTS</span>
+            <span class="accordion-arrow">▶</span>
+          </div>
+          <div class="accordion-content" id="section-fonts">
+            <div class="accordion-inner">
+              <div class="control-group">
+                <label>Select Font</label>
+                <div class="font-options-container">
+                  <!-- Sans-Serif Fonts -->
+                  <div class="font-category">
+                    <div class="font-category-title">Sans-Serif</div>
+                    <label class="font-option">
+                      <input type="radio" name="fontFamily" value="Outfit" checked>
+                      <span class="font-preview" style="font-family: 'Outfit', sans-serif;">Outfit</span>
+                    </label>
+                    <label class="font-option">
+                      <input type="radio" name="fontFamily" value="Roboto">
+                      <span class="font-preview" style="font-family: 'Roboto', sans-serif;">Roboto</span>
+                    </label>
+                    <label class="font-option">
+                      <input type="radio" name="fontFamily" value="Montserrat">
+                      <span class="font-preview" style="font-family: 'Montserrat', sans-serif;">Montserrat</span>
+                    </label>
+                    <label class="font-option">
+                      <input type="radio" name="fontFamily" value="Oswald">
+                      <span class="font-preview" style="font-family: 'Oswald', sans-serif;">Oswald</span>
+                    </label>
+                  </div>
+
+                  <!-- Serif Fonts -->
+                  <div class="font-category">
+                    <div class="font-category-title">Serif</div>
+                    <label class="font-option">
+                      <input type="radio" name="fontFamily" value="Playfair Display">
+                      <span class="font-preview" style="font-family: 'Playfair Display', serif;">Playfair Display</span>
+                    </label>
+                  </div>
+
+                  <!-- Display Fonts -->
+                  <div class="font-category">
+                    <div class="font-category-title">Display</div>
+                    <label class="font-option">
+                      <input type="radio" name="fontFamily" value="Bebas Neue">
+                      <span class="font-preview" style="font-family: 'Bebas Neue', sans-serif;">Bebas Neue</span>
+                    </label>
+                    <label class="font-option">
+                      <input type="radio" name="fontFamily" value="Anton">
+                      <span class="font-preview" style="font-family: 'Anton', sans-serif;">Anton</span>
+                    </label>
+                    <label class="font-option">
+                      <input type="radio" name="fontFamily" value="Righteous">
+                      <span class="font-preview" style="font-family: 'Righteous', sans-serif;">Righteous</span>
+                    </label>
+                    <label class="font-option">
+                      <input type="radio" name="fontFamily" value="Russo One">
+                      <span class="font-preview" style="font-family: 'Russo One', sans-serif;">Russo One</span>
+                    </label>
+                    <label class="font-option">
+                      <input type="radio" name="fontFamily" value="Orbitron">
+                      <span class="font-preview" style="font-family: 'Orbitron', sans-serif;">Orbitron</span>
+                    </label>
+                  </div>
+
+                  <!-- Script Fonts -->
+                  <div class="font-category">
+                    <div class="font-category-title">Script</div>
+                    <label class="font-option">
+                      <input type="radio" name="fontFamily" value="Pacifico">
+                      <span class="font-preview" style="font-family: 'Pacifico', cursive;">Pacifico</span>
+                    </label>
+                    <label class="font-option">
+                      <input type="radio" name="fontFamily" value="Lobster">
+                      <span class="font-preview" style="font-family: 'Lobster', cursive;">Lobster</span>
+                    </label>
+                    <label class="font-option">
+                      <input type="radio" name="fontFamily" value="Dancing Script">
+                      <span class="font-preview" style="font-family: 'Dancing Script', cursive;">Dancing Script</span>
+                    </label>
+                  </div>
+
+                  <!-- Decorative Fonts -->
+                  <div class="font-category">
+                    <div class="font-category-title">Decorative</div>
+                    <label class="font-option">
+                      <input type="radio" name="fontFamily" value="Permanent Marker">
+                      <span class="font-preview" style="font-family: 'Permanent Marker', cursive;">Permanent
+                        Marker</span>
+                    </label>
+                    <label class="font-option">
+                      <input type="radio" name="fontFamily" value="Bangers">
+                      <span class="font-preview" style="font-family: 'Bangers', cursive;">Bangers</span>
+                    </label>
+                  </div>
+
+                  <!-- Custom Fonts -->
+                  <div class="font-category" id="customFontsCategory">
+                    <div class="font-category-title">Custom Fonts</div>
+                    <div id="customFontsList">
+                      <!-- Custom fonts will be added here dynamically -->
+                    </div>
+                    <div class="custom-font-upload">
+                      <label class="upload-font-btn" for="customFontInput">
+                        <span class="upload-icon">📁</span>
+                        <span>Upload Font File</span>
+                      </label>
+                      <input type="file" id="customFontInput" accept=".ttf,.otf,.woff,.woff2" hidden>
+                      <p class="upload-hint">Supports: .ttf, .otf, .woff, .woff2</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Font Weight -->
+              <div class="control-group compact">
+                <label>Font Weight</label>
+                <select id="fontWeightSelect">
+                  <option value="400">Regular (400)</option>
+                  <option value="600">Semi-Bold (600)</option>
+                  <option value="700" selected>Bold (700)</option>
+                  <option value="800">Extra-Bold (800)</option>
+                  <option value="900">Black (900)</option>
+                </select>
               </div>
             </div>
           </div>
@@ -346,6 +625,27 @@
         </div>
       </section>
     </main>
+
+    <!-- Camera Modal -->
+    <div id="cameraModal" class="camera-modal hidden">
+      <div class="camera-modal-content">
+        <div class="camera-header">
+          <h3>📷 Capture Photo</h3>
+          <button id="closeCameraBtn" class="close-camera-btn">✕</button>
+        </div>
+        <div class="camera-body">
+          <video id="cameraVideo" autoplay playsinline></video>
+          <canvas id="captureCanvas" style="display: none;"></canvas>
+          <div id="cameraError" class="camera-error hidden">
+            <span class="error-icon">⚠️</span>
+            <p id="cameraErrorMsg">Camera not available</p>
+          </div>
+        </div>
+        <div class="camera-footer">
+          <button id="captureBtn" class="capture-btn">📸 Capture</button>
+        </div>
+      </div>
+    </div>
 
     <!-- Hidden Elements -->
     <canvas id="processingCanvas" style="display: none;"></canvas>

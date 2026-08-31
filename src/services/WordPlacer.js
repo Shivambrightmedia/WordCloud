@@ -19,17 +19,26 @@ import { randomColor, randomFromPalette, hexToRgb } from '../utils/colorUtils.js
 
 /** @type {PlacementConfig[]} */
 const DEFAULT_SIZE_TIERS = [
-    { scale: 4.0, attempts: 200 },
-    { scale: 2.5, attempts: 1000 },
-    { scale: 1.5, attempts: 5000 },
-    { scale: 1.0, attempts: 15000 },
-    { scale: 0.8, attempts: 40000 }
+    { scale: 5.5, attempts: 1500, padding: 2, minClearanceFactor: 0.48, isGiant: true },
+    { scale: 4.0, attempts: 3500, padding: 2, minClearanceFactor: 0.45, isGiant: true },
+    { scale: 2.8, attempts: 8000, padding: 1, minClearanceFactor: 0.40, isGiant: true },
+    { scale: 2.0, attempts: 20000, padding: 1, minClearanceFactor: 0.35 },
+    { scale: 1.4, attempts: 40000, padding: 1, minClearanceFactor: 0.28 },
+    { scale: 1.0, attempts: 65000, padding: 1, minClearanceFactor: 0.20 },
+    { scale: 0.70, attempts: 90000, padding: 0, minClearanceFactor: 0.14 },
+    { scale: 0.48, attempts: 130000, padding: 0, minClearanceFactor: 0.08 },
+    { scale: 0.32, attempts: 160000, padding: 0, minClearanceFactor: 0.04 },
+    { scale: 0.22, attempts: 190000, padding: 0, minClearanceFactor: 0.02 },
+    { scale: 0.15, attempts: 220000, padding: 0, minClearanceFactor: 0.01 }
 ];
 
 export class WordPlacer {
     constructor() {
         /** @type {PlacementConfig[]} */
         this.sizeTiers = DEFAULT_SIZE_TIERS;
+
+        /** @type {HTMLCanvasElement|null} */
+        this.metricsCanvas = null;
 
         /** @type {CanvasRenderingContext2D|null} */
         this.metricsCtx = null;
@@ -44,15 +53,77 @@ export class WordPlacer {
     }
 
     /**
-     * Initialize metrics helper canvas
+     * Initialize metrics helper canvas with willReadFrequently
      * @returns {CanvasRenderingContext2D}
      */
     getMetricsContext() {
         if (!this.metricsCtx) {
-            const canvas = document.createElement('canvas');
-            this.metricsCtx = canvas.getContext('2d');
+            this.metricsCanvas = document.createElement('canvas');
+            this.metricsCanvas.width = 512;
+            this.metricsCanvas.height = 256;
+            this.metricsCtx = this.metricsCanvas.getContext('2d', { willReadFrequently: true });
         }
         return this.metricsCtx;
+    }
+
+    /**
+     * Fast 2-pass Euclidean Distance Transform
+     * Calculates clearance distance (in pixels) to the nearest background pixel.
+     * @param {Uint8ClampedArray} imageData - Mask data
+     * @param {number} width - Canvas width
+     * @param {number} height - Canvas height
+     * @param {number} density - Density threshold
+     * @returns {Float32Array} Distance map
+     */
+    computeDistanceMap(imageData, width, height, density) {
+        const dist = new Float32Array(width * height);
+        const INF = 999999;
+
+        // Initialize: mask area = INF, background = 0
+        for (let y = 0; y < height; y++) {
+            const row = y * width;
+            for (let x = 0; x < width; x++) {
+                if (imageProcessor.checkMask(imageData, x, y, width, density)) {
+                    dist[row + x] = INF;
+                } else {
+                    dist[row + x] = 0;
+                }
+            }
+        }
+
+        // Pass 1: Top-Left to Bottom-Right
+        for (let y = 0; y < height; y++) {
+            const row = y * width;
+            for (let x = 0; x < width; x++) {
+                const idx = row + x;
+                if (dist[idx] > 0) {
+                    let d = dist[idx];
+                    if (x > 0) d = Math.min(d, dist[idx - 1] + 1);
+                    if (y > 0) d = Math.min(d, dist[idx - width] + 1);
+                    if (x > 0 && y > 0) d = Math.min(d, dist[idx - width - 1] + 1.414);
+                    if (x < width - 1 && y > 0) d = Math.min(d, dist[idx - width + 1] + 1.414);
+                    dist[idx] = d;
+                }
+            }
+        }
+
+        // Pass 2: Bottom-Right to Top-Left
+        for (let y = height - 1; y >= 0; y--) {
+            const row = y * width;
+            for (let x = width - 1; x >= 0; x--) {
+                const idx = row + x;
+                if (dist[idx] > 0) {
+                    let d = dist[idx];
+                    if (x < width - 1) d = Math.min(d, dist[idx + 1] + 1);
+                    if (y < height - 1) d = Math.min(d, dist[idx + width] + 1);
+                    if (x < width - 1 && y < height - 1) d = Math.min(d, dist[idx + width + 1] + 1.414);
+                    if (x > 0 && y < height - 1) d = Math.min(d, dist[idx + width - 1] + 1.414);
+                    dist[idx] = d;
+                }
+            }
+        }
+
+        return dist;
     }
 
     /**
@@ -74,7 +145,7 @@ export class WordPlacer {
 
         if (startX < 0 || startY < 0 || endX >= width || endY >= height) return true;
 
-        // Scan grid with stride=2 for performance
+        // Fast scan with step=2 for efficiency
         for (let y = startY; y < endY; y += 2) {
             const rowIdx = y * width;
             for (let x = startX; x < endX; x += 2) {
@@ -85,17 +156,9 @@ export class WordPlacer {
     }
 
     /**
-     * Mark grid cells as occupied
-     * @param {Uint8Array} grid - Collision grid
-     * @param {number} cx - Center X
-     * @param {number} cy - Center Y
-     * @param {number} boxW - Box width
-     * @param {number} boxH - Box height
-     * @param {number} width - Canvas width
-     * @param {number} height - Canvas height
-     * @param {number} padding - Extra padding around word
+     * Mark rectangular box in collision grid (for tiny filler text)
      */
-    markGrid(grid, cx, cy, boxW, boxH, width, height, padding = 2) {
+    markGridBox(grid, cx, cy, boxW, boxH, width, height, padding = 0) {
         const startX = Math.floor(cx - boxW / 2);
         const startY = Math.floor(cy - boxH / 2);
         const endX = startX + boxW;
@@ -112,7 +175,89 @@ export class WordPlacer {
     }
 
     /**
-     * Check if entire word fits inside the mask
+     * Mark ONLY the actual glyph / letter ink strokes into the collision grid.
+     * This leaves the empty whitespace surrounding letters open so small words can nest directly beside and around big words!
+     * @param {Uint8Array} grid - Collision grid
+     * @param {string} word - Word text
+     * @param {string} font - Canvas font string
+     * @param {number} cx - Center X
+     * @param {number} cy - Center Y
+     * @param {number} boxW - Box width
+     * @param {number} boxH - Box height
+     * @param {number} width - Canvas width
+     * @param {number} height - Canvas height
+     * @param {number} padding - Padding in px around glyph strokes
+     */
+    markGridGlyphs(grid, word, font, cx, cy, boxW, boxH, width, height, padding = 1) {
+        // For tiny micro words, bounding box is faster and sufficient
+        if (boxW < 24 || boxH < 14) {
+            this.markGridBox(grid, cx, cy, boxW, boxH, width, height, padding);
+            return;
+        }
+
+        const mCanvas = this.metricsCanvas;
+        const mCtx = this.metricsCtx;
+        const padBoxW = boxW + 8;
+        const padBoxH = boxH + 8;
+
+        if (mCanvas.width < padBoxW || mCanvas.height < padBoxH) {
+            mCanvas.width = Math.max(mCanvas.width, padBoxW + 64);
+            mCanvas.height = Math.max(mCanvas.height, padBoxH + 64);
+        }
+
+        mCtx.clearRect(0, 0, padBoxW, padBoxH);
+        mCtx.font = font;
+        mCtx.textBaseline = 'middle';
+        mCtx.textAlign = 'center';
+        mCtx.fillStyle = '#000000';
+        mCtx.fillText(word, padBoxW / 2, padBoxH / 2);
+
+        const imgData = mCtx.getImageData(0, 0, padBoxW, padBoxH);
+        const data = imgData.data;
+
+        const startX = Math.floor(cx - padBoxW / 2);
+        const startY = Math.floor(cy - padBoxH / 2);
+
+        for (let ly = 0; ly < padBoxH; ly += 2) {
+            const gy = startY + ly;
+            if (gy < 0 || gy >= height) continue;
+            const gridRow = gy * width;
+            const imgRow = ly * padBoxW;
+
+            for (let lx = 0; lx < padBoxW; lx += 2) {
+                const gx = startX + lx;
+                if (gx < 0 || gx >= width) continue;
+
+                // Check pixel alpha of drawn text stroke
+                if (data[(imgRow + lx) * 4 + 3] > 40) {
+                    if (padding === 0) {
+                        grid[gridRow + gx] = 1;
+                        if (gx + 1 < width) grid[gridRow + gx + 1] = 1;
+                        if (gy + 1 < height) {
+                            grid[gridRow + width + gx] = 1;
+                            if (gx + 1 < width) grid[gridRow + width + gx + 1] = 1;
+                        }
+                    } else {
+                        // Mark with padding
+                        for (let py = -padding; py <= padding; py++) {
+                            const ny = gy + py;
+                            if (ny < 0 || ny >= height) continue;
+                            const r = ny * width;
+                            for (let px = -padding; px <= padding; px++) {
+                                const nx = gx + px;
+                                if (nx >= 0 && nx < width) {
+                                    grid[r + nx] = 1;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Check if entire word fits cleanly inside the mask (checks 11 sample points)
      * @param {Uint8ClampedArray} data - Image data
      * @param {number} cx - Center X
      * @param {number} cy - Center Y
@@ -123,23 +268,30 @@ export class WordPlacer {
      * @returns {boolean} True if word fits
      */
     checkPlacementBounds(data, cx, cy, boxW, boxH, width, density) {
-        const startX = Math.floor(cx - boxW / 2);
-        const startY = Math.floor(cy - boxH / 2);
-        const endX = startX + boxW;
-        const endY = startY + boxH;
+        const halfW = boxW / 2;
+        const halfH = boxH / 2;
+        const startX = Math.floor(cx - halfW);
+        const startY = Math.floor(cy - halfH);
+        const endX = Math.floor(cx + halfW);
+        const endY = Math.floor(cy + halfH);
+        const midX = Math.floor(cx);
+        const midY = Math.floor(cy);
 
-        // Check corners and center
         const checkPoints = [
-            [startX, startY],      // Top-Left
-            [endX, startY],        // Top-Right
-            [startX, endY],        // Bottom-Left
-            [endX, endY],          // Bottom-Right
-            [cx, cy]               // Center
+            [startX, startY], [midX, startY], [endX, startY],
+            [startX, midY],   [midX, midY],   [endX, midY],
+            [startX, endY],   [midX, endY],   [endX, endY],
+            [Math.floor(cx - halfW * 0.5), midY],
+            [Math.floor(cx + halfW * 0.5), midY]
         ];
 
-        return checkPoints.every(([x, y]) =>
-            imageProcessor.checkMask(data, x, y, width, density)
-        );
+        for (let i = 0; i < checkPoints.length; i++) {
+            const [px, py] = checkPoints[i];
+            if (!imageProcessor.checkMask(data, px, py, width, density)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
@@ -148,9 +300,16 @@ export class WordPlacer {
      * @param {Object} pixelColor - Pixel color at position
      * @param {string} singleColor - Single color hex
      * @param {string[]} palette - Custom palette
+     * @param {string} word - Current word being placed
+     * @param {Object} wordColors - Map of word to color hex
      * @returns {{r: number, g: number, b: number}} RGB color
      */
-    getWordColor(colorMode, pixelColor, singleColor, palette) {
+    getWordColor(colorMode, pixelColor, singleColor, palette, word = '', wordColors = {}) {
+        // Check for per-word color first
+        if (colorMode === 'perWord' && word && wordColors[word]) {
+            return hexToRgb(wordColors[word]);
+        }
+
         switch (colorMode) {
             case 'source':
                 return { r: pixelColor.r, g: pixelColor.g, b: pixelColor.b };
@@ -158,6 +317,11 @@ export class WordPlacer {
                 return randomColor();
             case 'palette':
                 return randomFromPalette(palette);
+            case 'perWord':
+                if (word && wordColors[word]) {
+                    return hexToRgb(wordColors[word]);
+                }
+                return randomColor();
             case 'single':
             default:
                 return hexToRgb(singleColor);
@@ -165,7 +329,7 @@ export class WordPlacer {
     }
 
     /**
-     * Place words on the canvas
+     * Place words on the canvas using Distance-Transform Space Fitting (WordArt.com style)
      * @param {CanvasRenderingContext2D} ctx - Main canvas context
      * @param {Uint8ClampedArray} imageData - Processed image data
      * @param {Object} options - Placement options
@@ -177,13 +341,20 @@ export class WordPlacer {
             words,
             heroWords = [],
             fontSize,
+            fontFamily = 'Outfit',
+            fontWeight = 700,
             density,
             colorMode,
             color,
-            customPalette
+            customPalette,
+            wordColors = {},
+            wordItems = []
         } = options;
 
-        // Create collision grid
+        // Step 1: Pre-calculate distance-to-boundary clearance map
+        const distMap = this.computeDistanceMap(imageData, width, height, density);
+
+        // Step 2: Create collision grid
         const grid = new Uint8Array(width * height);
         const metricsCtx = this.getMetricsContext();
 
@@ -206,61 +377,72 @@ export class WordPlacer {
             ctx.shadowOffsetY = 0;
         }
 
-        // Process each size tier
+        const placedCount = {};
+
+        // Step 3: Process each size tier from largest to smallest
         for (const tier of this.sizeTiers) {
             let fontSizePx = Math.floor(fontSize * tier.scale);
+            if (fontSizePx < 7) fontSizePx = 7;
+            if (fontSizePx > width * 0.85) fontSizePx = Math.floor(width * 0.85);
 
-            // Safety cap
-            if (fontSizePx > width * 0.8) fontSizePx = Math.floor(width * 0.8);
-
-            const font = `700 ${fontSizePx}px 'Outfit'`;
+            const font = `${fontWeight} ${fontSizePx}px '${fontFamily}'`;
             ctx.font = font;
             metricsCtx.font = font;
 
-            const isGiantTier = tier.scale >= 3.0;
-            const attempts = Math.min(tier.attempts, 50000);
+            const isGiantTier = tier.isGiant || tier.scale >= 2.5;
+            const tierPadding = tier.padding !== undefined ? tier.padding : (tier.scale >= 2.0 ? 1 : 0);
+            const minClearanceFactor = tier.minClearanceFactor || 0.25;
+            const requiredClearance = Math.max(2, Math.floor(fontSizePx * minClearanceFactor));
+            const attempts = tier.attempts;
 
             for (let i = 0; i < attempts; i++) {
-                // Pick random position
                 const rx = Math.floor(Math.random() * width);
                 const ry = Math.floor(Math.random() * height);
+                const posIdx = ry * width + rx;
 
-                // Check if position is in mask
-                if (!imageProcessor.checkMask(imageData, rx, ry, width, density)) continue;
+                // SPACE-FITTING CHECK: Location MUST have enough distance to edge for this font size!
+                if (distMap[posIdx] < requiredClearance) continue;
 
-                // For giant words, only place in very dark areas
+                // Check brightness threshold: giant words only in solid dark areas
                 if (isGiantTier) {
                     const { brightness } = imageProcessor.getPixelColor(imageData, rx, ry, width);
-                    if (brightness > 100) continue;
+                    if (brightness > 115) continue;
                 }
 
-                // Pick word - hero words for giant tiers
-                const word = (isGiantTier && heroWords.length > 0)
-                    ? heroWords[Math.floor(Math.random() * heroWords.length)]
-                    : words[Math.floor(Math.random() * words.length)];
+                // Pick word: prioritize Hero Words for giant tiers
+                let word;
+                if (heroWords.length > 0 && isGiantTier) {
+                    word = heroWords[Math.floor(Math.random() * heroWords.length)];
+                } else {
+                    word = words[Math.floor(Math.random() * words.length)];
+                }
+
+                if (!word) continue;
 
                 const measure = metricsCtx.measureText(word);
                 const boxW = Math.ceil(measure.width);
-                const boxH = Math.ceil(fontSizePx * 0.8);
+                const boxH = Math.ceil(fontSizePx * 0.82);
 
-                // Check bounds
+                // Multi-point boundary check: entire word rectangle must stay inside mask
                 if (!this.checkPlacementBounds(imageData, rx, ry, boxW, boxH, width, density)) continue;
 
-                // Check collision
+                // Collision check against already placed words
                 if (!this.checkCollision(grid, rx, ry, boxW, boxH, width, height)) {
                     // Get color
                     const pixelColor = imageProcessor.getPixelColor(imageData, rx, ry, width);
-                    const wordColor = this.getWordColor(colorMode, pixelColor, color, customPalette);
+                    const wordColor = this.getWordColor(colorMode, pixelColor, color, customPalette, word, wordColors);
 
-                    // Calculate alpha
+                    // Shading based on brightness
                     const alpha = colorMode === 'source' ? 1.0 : (1 - (pixelColor.brightness / 255));
 
                     // Draw word
-                    ctx.fillStyle = `rgba(${wordColor.r}, ${wordColor.g}, ${wordColor.b}, ${alpha.toFixed(2)})`;
+                    ctx.fillStyle = `rgba(${wordColor.r}, ${wordColor.g}, ${wordColor.b}, ${Math.max(0.2, alpha).toFixed(2)})`;
                     ctx.fillText(word, rx, ry);
 
-                    // Mark grid
-                    this.markGrid(grid, rx, ry, boxW, boxH, width, height);
+                    // Mark grid with glyph stroke accuracy so smaller words can nest around & beside
+                    this.markGridGlyphs(grid, word, font, rx, ry, boxW, boxH, width, height, tierPadding);
+
+                    placedCount[word] = (placedCount[word] || 0) + 1;
                 }
             }
         }

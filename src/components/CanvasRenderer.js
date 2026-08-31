@@ -134,11 +134,19 @@ export class CanvasRenderer extends BaseComponent {
             words: state.words,
             heroWords: state.heroWords,
             fontSize: state.fontSize,
+            fontFamily: state.fontFamily || 'Outfit',
+            fontWeight: state.fontWeight || 700,
             density: state.density,
             colorMode: state.colorMode,
             color: state.color,
-            customPalette: state.customPalette
+            customPalette: state.customPalette,
+            wordColors: state.wordColors || {}
         });
+
+        // Draw logo overlay if present
+        if (state.logoImage) {
+            this.drawLogoOverlay(state);
+        }
 
         const endTime = performance.now();
         const duration = ((endTime - startTime) / 1000).toFixed(2);
@@ -151,6 +159,96 @@ export class CanvasRenderer extends BaseComponent {
         this.mainCanvas.scrollIntoView({ behavior: 'smooth' });
 
         this.emit(Events.GENERATION_COMPLETE, { duration });
+    }
+
+    /**
+     * Draw logo overlay on canvas
+     * @param {Object} state - Current state
+     */
+    drawLogoOverlay(state) {
+        const {
+            logoImage,
+            logoPosition = 'center',
+            logoScale = 30,
+            logoOpacity = 100,
+            logoOffsetX = 0,
+            logoOffsetY = 0,
+            canvasWidth,
+            canvasHeight
+        } = state;
+
+        if (!logoImage) return;
+
+        // Calculate logo dimensions
+        const maxWidth = canvasWidth * (logoScale / 100);
+        const aspectRatio = logoImage.width / logoImage.height;
+        const logoWidth = maxWidth;
+        const logoHeight = maxWidth / aspectRatio;
+
+        // Calculate position based on 9-point grid
+        let x, y;
+        // Padding is 2% of the smaller dimension for proportional spacing
+        const padding = Math.min(canvasWidth, canvasHeight) * 0.02;
+
+        switch (logoPosition) {
+            case 'top-left':
+                x = padding;
+                y = padding;
+                break;
+            case 'top-center':
+                x = (canvasWidth - logoWidth) / 2;
+                y = padding;
+                break;
+            case 'top-right':
+                x = canvasWidth - logoWidth - padding;
+                y = padding;
+                break;
+            case 'center-left':
+                x = padding;
+                y = (canvasHeight - logoHeight) / 2;
+                break;
+            case 'center':
+                x = (canvasWidth - logoWidth) / 2;
+                y = (canvasHeight - logoHeight) / 2;
+                break;
+            case 'center-right':
+                x = canvasWidth - logoWidth - padding;
+                y = (canvasHeight - logoHeight) / 2;
+                break;
+            case 'bottom-left':
+                x = padding;
+                y = canvasHeight - logoHeight - padding;
+                break;
+            case 'bottom-center':
+                x = (canvasWidth - logoWidth) / 2;
+                y = canvasHeight - logoHeight - padding;
+                break;
+            case 'bottom-right':
+                x = canvasWidth - logoWidth - padding;
+                y = canvasHeight - logoHeight - padding;
+                break;
+            default:
+                x = (canvasWidth - logoWidth) / 2;
+                y = (canvasHeight - logoHeight) / 2;
+        }
+
+        // Apply offset
+        x += logoOffsetX;
+        y += logoOffsetY;
+
+        // Save context state
+        this.ctx.save();
+
+        // Apply opacity
+        this.ctx.globalAlpha = logoOpacity / 100;
+
+        // Draw the logo
+        this.ctx.drawImage(logoImage, x, y, logoWidth, logoHeight);
+
+        // Restore context state
+        this.ctx.restore();
+
+        console.log(`🏷️ Logo drawn at (${x}, ${y}) size: ${logoWidth}x${logoHeight}`);
     }
 
     /**

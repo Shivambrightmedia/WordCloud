@@ -16,6 +16,11 @@ export function hexToRgb(hex) {
     };
 }
 
+
+
+
+
+
 /**
  * Convert RGB values to hex string
  * @param {number} r - Red (0-255)
@@ -30,6 +35,8 @@ export function rgbToHex(r, g, b) {
     };
     return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
 }
+
+
 
 /**
  * Calculate luminance/brightness of RGB values

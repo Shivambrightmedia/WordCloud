@@ -48,13 +48,20 @@ export class PresetService {
     /**
      * Save presets to localStorage
      * @param {Object<string, Object>} presets - Presets to save
+     * @returns {boolean} Success status
      * @private
      */
     _saveToStorage(presets) {
         try {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(presets));
+            return true;
         } catch (error) {
             console.error('Error saving presets:', error);
+            // Check if it's a quota exceeded error
+            if (error.name === 'QuotaExceededError' || error.code === 22) {
+                alert('Storage limit exceeded! Try removing the logo from the preset or use a smaller logo image.');
+            }
+            return false;
         }
     }
 
@@ -98,7 +105,15 @@ export class PresetService {
         }
 
         this._presets[name] = stateManager.getSerializableState();
-        this._saveToStorage(this._presets);
+
+        // Try to save and check if successful
+        const saved = this._saveToStorage(this._presets);
+
+        if (!saved) {
+            // Remove the preset if save failed
+            delete this._presets[name];
+            return false;
+        }
 
         eventBus.emit(Events.PRESET_SAVED, { name, preset: this._presets[name] });
         return true;

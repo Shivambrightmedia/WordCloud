@@ -49,6 +49,8 @@ export class PresetPanel extends BaseComponent {
             this.presetSelect.value = name;
             this.updateDetails();
             alert(`Preset "${name}" saved!`);
+        } else {
+            alert(`Failed to save preset "${name}". The logo image may be too large. Try using a smaller logo or save without a logo.`);
         }
     }
 

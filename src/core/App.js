@@ -18,6 +18,8 @@ import { createImageUploader } from '../components/ImageUploader.js';
 import { createImageCustomizer } from '../components/ImageCustomizer.js';
 import { createWordSettings } from '../components/WordSettings.js';
 import { createColorSettings } from '../components/ColorSettings.js';
+import { createFontSettings } from '../components/FontSettings.js';
+import { createOverlaySettings } from '../components/OverlaySettings.js';
 import { createResolutionSettings } from '../components/ResolutionSettings.js';
 import { createCanvasRenderer } from '../components/CanvasRenderer.js';
 import { createPresetPanel } from '../components/PresetPanel.js';
@@ -67,6 +69,8 @@ export class App {
                 createImageCustomizer(),
                 createWordSettings(),
                 createColorSettings(),
+                createFontSettings(),
+                createOverlaySettings(),
                 createResolutionSettings(),
                 createCanvasRenderer(),
                 createPresetPanel(),

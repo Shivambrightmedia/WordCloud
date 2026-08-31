@@ -5,6 +5,7 @@
  */
 
 import { BaseComponent } from './BaseComponent.js';
+import { Events } from '../core/EventBus.js';
 
 export class ColorSettings extends BaseComponent {
     constructor() {
@@ -59,6 +60,11 @@ export class ColorSettings extends BaseComponent {
 
         // Initialize existing palette listeners
         this.initPaletteListeners();
+
+        // Re-render when preset is loaded
+        this.on(Events.PRESET_LOADED, () => {
+            this.render();
+        });
     }
 
     /**

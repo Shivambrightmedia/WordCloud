@@ -71,7 +71,12 @@ export class ResolutionSettings extends BaseComponent {
         }, 300);
 
         this.addListener(this.densityInput, 'input', (e) => {
-            debouncedDensity(parseInt(e.target.value));
+            const value = parseInt(e.target.value);
+            // Update display immediately
+            const densityValue = this.$('densityValue');
+            if (densityValue) densityValue.textContent = value;
+            // Update state with debounce
+            debouncedDensity(value);
         });
 
         // Font size (with debounce for live preview)
@@ -80,7 +85,12 @@ export class ResolutionSettings extends BaseComponent {
         }, 300);
 
         this.addListener(this.fontSizeInput, 'input', (e) => {
-            debouncedFontSize(parseInt(e.target.value));
+            const value = parseInt(e.target.value);
+            // Update display immediately
+            const fontSizeValue = this.$('fontSizeValue');
+            if (fontSizeValue) fontSizeValue.textContent = value;
+            // Update state with debounce
+            debouncedFontSize(value);
         });
     }
 
@@ -90,10 +100,10 @@ export class ResolutionSettings extends BaseComponent {
      */
     handleResolutionChange(value) {
         if (value === 'custom') {
-            this.customResolution.style.display = 'block';
+            this.customResolution.classList.remove('hidden');
             this.updateCustomResolution();
         } else {
-            this.customResolution.style.display = 'none';
+            this.customResolution.classList.add('hidden');
             const [w, h] = value.split('x').map(Number);
             this.setState({ canvasWidth: w, canvasHeight: h });
         }

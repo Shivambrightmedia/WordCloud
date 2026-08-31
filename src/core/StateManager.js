@@ -37,9 +37,14 @@ import { eventBus, Events } from './EventBus.js';
 const defaultState = {
     words: ['Love', 'Hope', 'Dream', 'Life', 'Art', 'Code', 'Future', 'Create', 'Vision', 'Soul'],
     heroWords: [],
+    wordItems: [], // Array of {text, color, repeat} for per-word settings
+    wordColors: {}, // Map of word -> color for per-word coloring
     image: null,
     density: 120,
     fontSize: 60,
+    fontFamily: 'Outfit',
+    fontWeight: 700,
+    customFonts: {}, // Map of font name -> data URL for custom uploaded fonts
     canvasWidth: 2400,
     canvasHeight: 3600,
     color: '#000000',
@@ -53,6 +58,14 @@ const defaultState = {
     negative: false,
     negativeColor: '#555555',
     margin: 0,
+    // Logo/Overlay settings
+    logoImage: null,
+    logoDataUrl: null,
+    logoPosition: 'center',
+    logoScale: 30,
+    logoOpacity: 100,
+    logoOffsetX: 0,
+    logoOffsetY: 0,
 };
 
 export class StateManager {
@@ -146,7 +159,9 @@ export class StateManager {
      * @returns {Object} Serializable state
      */
     getSerializableState() {
-        const { image, ...serializable } = this._state;
+        // Exclude: image (HTMLImageElement), logoImage (HTMLImageElement), 
+        // and logoDataUrl (can be very large, causes localStorage quota issues)
+        const { image, logoImage, logoDataUrl, ...serializable } = this._state;
         return serializable;
     }
 
@@ -155,8 +170,8 @@ export class StateManager {
      * @param {Object} serializedState - Serialized state object
      */
     loadSerializedState(serializedState) {
-        // Don't overwrite image
-        const { image: _, ...updates } = serializedState;
+        // Don't overwrite image or logoImage (they're HTMLImageElements)
+        const { image: _, logoImage: __, ...updates } = serializedState;
         this.setState(updates);
     }
 }
