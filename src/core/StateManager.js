@@ -155,13 +155,13 @@ export class StateManager {
     }
 
     /**
-     * Get serializable state for presets (excludes non-serializable values like Image)
+     * Get serializable state for presets (excludes non-serializable values like HTMLImageElement)
+     * Preserves logoDataUrl and all logo transform settings so logo stays permanently with presets!
      * @returns {Object} Serializable state
      */
     getSerializableState() {
-        // Exclude: image (HTMLImageElement), logoImage (HTMLImageElement), 
-        // and logoDataUrl (can be very large, causes localStorage quota issues)
-        const { image, logoImage, logoDataUrl, ...serializable } = this._state;
+        // Exclude raw HTMLImageElements (image, logoImage), but KEEP logoDataUrl
+        const { image, logoImage, ...serializable } = this._state;
         return serializable;
     }
 
@@ -170,9 +170,20 @@ export class StateManager {
      * @param {Object} serializedState - Serialized state object
      */
     loadSerializedState(serializedState) {
-        // Don't overwrite image or logoImage (they're HTMLImageElements)
+        // Don't overwrite main portrait image
         const { image: _, logoImage: __, ...updates } = serializedState;
         this.setState(updates);
+
+        // If preset contains a saved logoDataUrl, recreate the logoImage element
+        if (updates.logoDataUrl) {
+            const img = new Image();
+            img.onload = () => {
+                this.setState({ logoImage: img });
+            };
+            img.src = updates.logoDataUrl;
+        } else if (updates.logoDataUrl === null) {
+            this.setState({ logoImage: null });
+        }
     }
 }
 
