@@ -172,6 +172,13 @@ export class StateManager {
     loadSerializedState(serializedState) {
         // Don't overwrite main portrait image
         const { image: _, logoImage: __, ...updates } = serializedState;
+
+        // If preset has NO logoDataUrl (e.g. older preset), preserve existing uploaded logo!
+        if (updates.logoDataUrl === undefined && this._state.logoDataUrl) {
+            updates.logoDataUrl = this._state.logoDataUrl;
+            updates.logoImage = this._state.logoImage;
+        }
+
         this.setState(updates);
 
         // If preset contains a saved logoDataUrl, recreate the logoImage element
@@ -181,8 +188,6 @@ export class StateManager {
                 this.setState({ logoImage: img });
             };
             img.src = updates.logoDataUrl;
-        } else if (updates.logoDataUrl === null) {
-            this.setState({ logoImage: null });
         }
     }
 }

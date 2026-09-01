@@ -196,18 +196,20 @@ export class OverlaySettings extends BaseComponent {
      * Load logo from state (for preset loading)
      */
     loadLogoFromState() {
-        const { logoDataUrl } = this.state;
+        const { logoDataUrl, logoImage } = this.state;
 
         if (logoDataUrl) {
-            // Recreate image from data URL
-            const img = new Image();
-            img.onload = () => {
-                this.setState({ logoImage: img }, true); // Silent update
+            if (logoImage && logoImage.naturalWidth) {
                 this.showLogoPreview(logoDataUrl);
-            };
-            img.src = logoDataUrl;
-        } else {
-            this.removeLogo();
+            } else {
+                // Recreate image from data URL
+                const img = new Image();
+                img.onload = () => {
+                    this.setState({ logoImage: img });
+                    this.showLogoPreview(logoDataUrl);
+                };
+                img.src = logoDataUrl;
+            }
         }
     }
 

@@ -65,9 +65,15 @@ export class PresetPanel extends BaseComponent {
         }
 
         if (presetService.loadPreset(name)) {
-            alert(`Preset "${name}" loaded successfully!`);
-            // Trigger re-render of all components
-            this.emit(Events.PRESET_LOADED, { name });
+            this.updateDetails();
+            const details = this.presetDetails;
+            if (details) {
+                const prev = details.textContent;
+                details.textContent = `✅ "${name}" loaded!`;
+                setTimeout(() => {
+                    if (this.presetDetails) this.updateDetails();
+                }, 2500);
+            }
         } else {
             alert('Error loading preset.');
         }
