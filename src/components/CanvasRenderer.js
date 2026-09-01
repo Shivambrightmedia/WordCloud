@@ -33,6 +33,7 @@ export class CanvasRenderer extends BaseComponent {
         this.procCtx = this.processingCanvas.getContext('2d');
         this.generateBtn = this.$('generateBtn');
         this.downloadBtn = this.$('downloadBtn');
+        this.downloadSvgBtn = this.$('downloadSvgBtn');
         this.loading = this.$('loadingIndicator');
         this.emptyState = this.$('emptyState');
     }
@@ -40,6 +41,9 @@ export class CanvasRenderer extends BaseComponent {
     bindEvents() {
         this.addListener(this.generateBtn, 'click', () => this.generate());
         this.addListener(this.downloadBtn, 'click', () => this.download());
+        if (this.downloadSvgBtn) {
+            this.addListener(this.downloadSvgBtn, 'click', () => this.downloadSVG());
+        }
 
         // Listen for generation events
         this.on(Events.GENERATION_START, () => this.showLoading());
@@ -152,8 +156,9 @@ export class CanvasRenderer extends BaseComponent {
         const duration = ((endTime - startTime) / 1000).toFixed(2);
         console.log(`Generation took ${duration}s`);
 
-        // Enable download button
+        // Enable download buttons
         this.downloadBtn.disabled = false;
+        if (this.downloadSvgBtn) this.downloadSvgBtn.disabled = false;
 
         // Scroll to canvas
         this.mainCanvas.scrollIntoView({ behavior: 'smooth' });
@@ -252,10 +257,19 @@ export class CanvasRenderer extends BaseComponent {
     }
 
     /**
-     * Download the generated image
+     * Download the generated image as High-Res PNG
      */
     download() {
         exportService.downloadPNG(this.mainCanvas, 'word-portrait');
+    }
+
+    /**
+     * Download pure mathematical Vector SVG (Infinite zoom without blur)
+     */
+    downloadSVG() {
+        const { canvasWidth, canvasHeight } = this.state;
+        const words = wordPlacer.placedWords || [];
+        exportService.downloadSVG(words, canvasWidth, canvasHeight, 'word-portrait-vector');
     }
 
     render() {

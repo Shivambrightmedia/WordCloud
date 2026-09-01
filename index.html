@@ -552,17 +552,17 @@
               <div class="control-group">
                 <label for="resolutionSelect">Output Resolution</label>
                 <select id="resolutionSelect">
-                  <option value="1200x1800">4×6 (1200×1800) Photo</option>
-                  <option value="2400x3600" selected>4×6 (2400×3600) HQ</option>
-                  <option value="1800x2700">5×7.5 (1800×2700)</option>
-                  <option value="2400x3000">8×10 (2400×3000)</option>
+                  <option value="1200x1800">4×6 (1200×1800) Fast</option>
+                  <option value="2400x3600">4×6 (2400×3600) Standard HQ</option>
                   <option value="3000x4500">10×15 (3000×4500) Poster</option>
+                  <option value="4000x6000" selected>16×24 (4000×6000) Ultra 4K (Razor Sharp)</option>
+                  <option value="4800x7200">20×30 (4800×7200) Master 8K (Extreme Vector Detail)</option>
                   <option value="custom">Custom...</option>
                 </select>
                 <div id="customResolution" class="custom-res hidden">
-                  <input type="number" id="customWidth" placeholder="Width" value="2400" min="100" max="10000">
+                  <input type="number" id="customWidth" placeholder="Width" value="4000" min="100" max="10000">
                   <span>×</span>
-                  <input type="number" id="customHeight" placeholder="Height" value="3600" min="100" max="10000">
+                  <input type="number" id="customHeight" placeholder="Height" value="6000" min="100" max="10000">
                 </div>
               </div>
             </div>
@@ -602,9 +602,14 @@
           <button id="generateBtn" class="primary-btn pulse">
             ✨ Generate Portrait
           </button>
-          <button id="downloadBtn" class="secondary-btn" disabled>
-            ↓ Download PNG
-          </button>
+          <div class="download-btn-group" style="display: flex; gap: 8px; width: 100%;">
+            <button id="downloadBtn" class="secondary-btn" style="flex: 1;" disabled>
+              ↓ PNG
+            </button>
+            <button id="downloadSvgBtn" class="secondary-btn svg-action-btn" style="flex: 1.2;" disabled>
+              ⚡ SVG (Vector)
+            </button>
+          </div>
         </div>
 
       </aside>

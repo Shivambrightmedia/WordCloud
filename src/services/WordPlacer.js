@@ -365,6 +365,9 @@ export class WordPlacer {
         const grid = new Uint8Array(width * height);
         const metricsCtx = this.getMetricsContext();
 
+        // Vector words list for high-res SVG export
+        this.placedWords = [];
+
         // Setup canvas
         ctx.fillStyle = '#FFFFFF';
         ctx.fillRect(0, 0, width, height);
@@ -449,9 +452,22 @@ export class WordPlacer {
                         alpha = Math.max(0.15, Math.min(1.0, darkness * 1.15));
                     }
 
+                    const colorStr = `rgba(${wordColor.r}, ${wordColor.g}, ${wordColor.b}, ${alpha.toFixed(2)})`;
+
                     // Draw word
-                    ctx.fillStyle = `rgba(${wordColor.r}, ${wordColor.g}, ${wordColor.b}, ${alpha.toFixed(2)})`;
+                    ctx.fillStyle = colorStr;
                     ctx.fillText(word, rx, ry);
+
+                    // Record vector word
+                    this.placedWords.push({
+                        text: word,
+                        x: rx,
+                        y: ry,
+                        fontFamily: fontFamily || 'Outfit',
+                        fontWeight: fontWeight || 700,
+                        fontSize: fontSizePx,
+                        color: colorStr
+                    });
 
                     // Mark grid with glyph stroke accuracy so smaller words can nest around & beside
                     this.markGridGlyphs(grid, word, font, rx, ry, boxW, boxH, width, height, tierPadding);
@@ -491,9 +507,20 @@ export class WordPlacer {
                             const wordColor = this.getWordColor(colorMode, pixelColor, color, customPalette, word, wordColors);
                             const darkness = 1 - (pixelColor.brightness / 255);
                             const alpha = colorMode === 'source' ? 1.0 : Math.max(0.40, Math.min(1.0, darkness * 1.2));
+                            const colorStr = `rgba(${wordColor.r}, ${wordColor.g}, ${wordColor.b}, ${alpha.toFixed(2)})`;
 
-                            ctx.fillStyle = `rgba(${wordColor.r}, ${wordColor.g}, ${wordColor.b}, ${alpha.toFixed(2)})`;
+                            ctx.fillStyle = colorStr;
                             ctx.fillText(word, x, y);
+
+                            this.placedWords.push({
+                                text: word,
+                                x: x,
+                                y: y,
+                                fontFamily: fontFamily || 'Outfit',
+                                fontWeight: fontWeight || 700,
+                                fontSize: edgeFontSizePx,
+                                color: colorStr
+                            });
 
                             this.markGridBox(grid, x, y, boxW, boxH, width, height, 0);
                         }
@@ -501,6 +528,8 @@ export class WordPlacer {
                 }
             }
         }
+
+        return this.placedWords;
     }
 }
 
