@@ -38,6 +38,9 @@ export class ImageUploader extends BaseComponent {
         /** @type {HTMLButtonElement|null} */
         this.closeCameraBtn = null;
 
+        /** @type {HTMLButtonElement|null} */
+        this.switchCameraBtn = null;
+
         /** @type {HTMLElement|null} */
         this.cameraError = null;
 
@@ -46,6 +49,9 @@ export class ImageUploader extends BaseComponent {
 
         /** @type {MediaStream|null} */
         this.currentStream = null;
+
+        /** @type {string} */
+        this.facingMode = 'user'; // 'user' (front/selfie) or 'environment' (back/rear)
     }
 
     cacheElements() {
@@ -58,6 +64,7 @@ export class ImageUploader extends BaseComponent {
         this.captureCanvas = this.$('captureCanvas');
         this.captureBtn = this.$('captureBtn');
         this.closeCameraBtn = this.$('closeCameraBtn');
+        this.switchCameraBtn = this.$('switchCameraBtn');
         this.cameraError = this.$('cameraError');
         this.cameraErrorMsg = this.$('cameraErrorMsg');
     }
@@ -88,6 +95,11 @@ export class ImageUploader extends BaseComponent {
         // Camera button click
         if (this.cameraBtn) {
             this.addListener(this.cameraBtn, 'click', this.openCamera);
+        }
+
+        // Switch/Flip camera button click
+        if (this.switchCameraBtn) {
+            this.addListener(this.switchCameraBtn, 'click', this.switchCamera);
         }
 
         // Capture button click
@@ -179,6 +191,64 @@ export class ImageUploader extends BaseComponent {
     }
 
     /**
+     * Switch between Front (Selfie) and Back (Rear) camera
+     */
+    async switchCamera() {
+        this.facingMode = this.facingMode === 'user' ? 'environment' : 'user';
+        if (this.currentStream) {
+            this.currentStream.getTracks().forEach(track => track.stop());
+            this.currentStream = null;
+        }
+        await this.startStream();
+    }
+
+    /**
+     * Start or restart webcam stream
+     */
+    async startStream() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            this.showCameraError('Camera not supported in this browser');
+            return;
+        }
+
+        try {
+            // Apply mirror class ONLY for selfie/front camera
+            if (this.facingMode === 'user') {
+                this.videoElement.classList.add('mirror');
+            } else {
+                this.videoElement.classList.remove('mirror');
+            }
+
+            const constraints = {
+                video: {
+                    facingMode: this.facingMode,
+                    width: { ideal: 1920 },
+                    height: { ideal: 1080 }
+                },
+                audio: false
+            };
+
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+            this.currentStream = stream;
+            this.videoElement.srcObject = stream;
+
+            this.videoElement.onloadedmetadata = () => {
+                this.videoElement.play();
+                this.captureBtn.disabled = false;
+            };
+        } catch (error) {
+            console.error('Camera error:', error);
+            if (error.name === 'NotAllowedError') {
+                this.showCameraError('Camera access denied. Please allow camera permissions.');
+            } else if (error.name === 'NotFoundError') {
+                this.showCameraError('No camera found on this device.');
+            } else {
+                this.showCameraError('Could not access camera: ' + error.message);
+            }
+        }
+    }
+
+    /**
      * Open the camera modal and start webcam stream
      */
     async openCamera() {
@@ -192,46 +262,7 @@ export class ImageUploader extends BaseComponent {
         this.cameraError.classList.add('hidden');
         this.captureBtn.disabled = true;
 
-        // Check for webcam support
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            this.showCameraError('Camera not supported in this browser');
-            return;
-        }
-
-        try {
-            // Request camera access
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: {
-                    facingMode: 'user',
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
-                },
-                audio: false
-            });
-
-            this.currentStream = stream;
-            this.videoElement.srcObject = stream;
-
-            // Wait for video to be ready
-            this.videoElement.onloadedmetadata = () => {
-                this.videoElement.play();
-                this.captureBtn.disabled = false;
-            };
-
-        } catch (error) {
-            console.error('Camera error:', error);
-
-            // Handle specific error types
-            if (error.name === 'NotAllowedError') {
-                this.showCameraError('Camera access denied. Please allow camera permissions.');
-            } else if (error.name === 'NotFoundError') {
-                this.showCameraError('No camera found on this device.');
-            } else if (error.name === 'NotReadableError') {
-                this.showCameraError('Camera is already in use by another application.');
-            } else {
-                this.showCameraError('Could not access camera: ' + error.message);
-            }
-        }
+        await this.startStream();
     }
 
     /**
@@ -249,26 +280,47 @@ export class ImageUploader extends BaseComponent {
     }
 
     /**
-     * Capture photo from webcam
+     * Capture photo from webcam in exact 4×6 (2:3 aspect ratio)
      */
     capturePhoto() {
         if (!this.videoElement || !this.captureCanvas) {
             return;
         }
 
-        // Set canvas dimensions to match video
-        const videoWidth = this.videoElement.videoWidth;
-        const videoHeight = this.videoElement.videoHeight;
+        const videoWidth = this.videoElement.videoWidth || 1280;
+        const videoHeight = this.videoElement.videoHeight || 720;
+        const targetRatio = 2 / 3; // 4x6 Photo Aspect Ratio (Portrait)
 
-        this.captureCanvas.width = videoWidth;
-        this.captureCanvas.height = videoHeight;
+        let cropW, cropH, cropX, cropY;
+
+        if (videoWidth / videoHeight > targetRatio) {
+            cropH = videoHeight;
+            cropW = Math.round(videoHeight * targetRatio);
+            cropX = Math.round((videoWidth - cropW) / 2);
+            cropY = 0;
+        } else {
+            cropW = videoWidth;
+            cropH = Math.round(videoWidth / targetRatio);
+            cropX = 0;
+            cropY = Math.round((videoHeight - cropH) / 2);
+        }
+
+        // Set output canvas to sharp 4x6 resolution (1600x2400)
+        const outW = 1600;
+        const outH = 2400;
+        this.captureCanvas.width = outW;
+        this.captureCanvas.height = outH;
 
         const ctx = this.captureCanvas.getContext('2d');
 
-        // Mirror the image horizontally to match the preview
-        ctx.translate(videoWidth, 0);
-        ctx.scale(-1, 1);
-        ctx.drawImage(this.videoElement, 0, 0, videoWidth, videoHeight);
+        // If selfie front camera, mirror image horizontally
+        if (this.facingMode === 'user') {
+            ctx.translate(outW, 0);
+            ctx.scale(-1, 1);
+        }
+
+        // Draw the exact 4x6 center crop
+        ctx.drawImage(this.videoElement, cropX, cropY, cropW, cropH, 0, 0, outW, outH);
 
         // Reset transform
         ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -283,9 +335,11 @@ export class ImageUploader extends BaseComponent {
 
             // Update UI
             const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
-            const filename = `camera-capture-${timestamp}.png`;
-            this.imageName.textContent = filename;
-            this.imageName.classList.remove('hidden');
+            const filename = `camera-4x6-${timestamp}.png`;
+            if (this.imageName) {
+                this.imageName.textContent = filename;
+                this.imageName.classList.remove('hidden');
+            }
 
             // Emit event
             this.emit(Events.IMAGE_LOADED, { image: img, name: filename });

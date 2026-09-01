@@ -634,11 +634,20 @@
     <div id="cameraModal" class="camera-modal hidden">
       <div class="camera-modal-content">
         <div class="camera-header">
-          <h3>📷 Capture Photo</h3>
-          <button id="closeCameraBtn" class="close-camera-btn">✕</button>
+          <h3>📷 Capture Photo (4×6)</h3>
+          <div class="camera-header-actions" style="display: flex; gap: 8px; align-items: center;">
+            <button id="switchCameraBtn" class="icon-btn" title="Flip Camera (Front / Back)" style="padding: 6px 12px; font-size: 0.85rem; display: flex; align-items: center; gap: 6px;">
+              🔄 <span>Flip Camera</span>
+            </button>
+            <button id="closeCameraBtn" class="close-camera-btn">✕</button>
+          </div>
         </div>
         <div class="camera-body">
-          <video id="cameraVideo" autoplay playsinline></video>
+          <div class="camera-viewfinder-container">
+            <video id="cameraVideo" autoplay playsinline class="mirror"></video>
+            <div class="camera-guide-frame"></div>
+            <div class="camera-ratio-badge">4×6 Frame</div>
+          </div>
           <canvas id="captureCanvas" style="display: none;"></canvas>
           <div id="cameraError" class="camera-error hidden">
             <span class="error-icon">⚠️</span>
@@ -646,7 +655,7 @@
           </div>
         </div>
         <div class="camera-footer">
-          <button id="captureBtn" class="capture-btn">📸 Capture</button>
+          <button id="captureBtn" class="capture-btn">📸 Take 4×6 Photo</button>
         </div>
       </div>
     </div>
