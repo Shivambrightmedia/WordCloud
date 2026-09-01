@@ -117,8 +117,8 @@ export class ResolutionSettings extends BaseComponent {
         const h = parseInt(this.customHeight.value) || 3600;
 
         this.setState({
-            canvasWidth: Math.min(10000, Math.max(100, w)),
-            canvasHeight: Math.min(10000, Math.max(100, h))
+            canvasWidth: Math.max(100, w),
+            canvasHeight: Math.max(100, h)
         });
     }
 
