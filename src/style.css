@@ -1728,25 +1728,3 @@ canvas {
     flex-direction: column;
   }
 }
-
-/* Vector SVG Export Button */
-.svg-action-btn {
-  background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%) !important;
-  color: #ffffff !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
-  font-weight: 700;
-  transition: all 0.2s ease;
-}
-
-.svg-action-btn:hover:not(:disabled) {
-  background: linear-gradient(135deg, #4f46e5 0%, #9333ea 100%) !important;
-  box-shadow: 0 6px 18px rgba(99, 102, 241, 0.55);
-  transform: translateY(-1px);
-}
-
-.svg-action-btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-  transform: none;
-}

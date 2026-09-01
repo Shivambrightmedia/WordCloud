@@ -365,14 +365,14 @@ export class WordPlacer {
         const grid = new Uint8Array(width * height);
         const metricsCtx = this.getMetricsContext();
 
-        // Vector words list for high-res SVG export
-        this.placedWords = [];
-
         // Setup canvas
         ctx.fillStyle = '#FFFFFF';
         ctx.fillRect(0, 0, width, height);
         ctx.textBaseline = 'middle';
         ctx.textAlign = 'center';
+
+        // Vector list of placed words for razor-sharp SVG export
+        this.placedWords = [];
 
         // Setup shadow for source mode
         if (colorMode === 'source') {

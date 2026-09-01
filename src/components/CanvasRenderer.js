@@ -20,10 +20,14 @@ export class CanvasRenderer extends BaseComponent {
         this.procCtx = null;
         this.generateBtn = null;
         this.downloadBtn = null;
+        this.downloadSvgBtn = null;
         this.loading = null;
         this.emptyState = null;
 
         this._isGenerating = false;
+        this.lastPlacedWords = [];
+        this.lastWidth = 2400;
+        this.lastHeight = 3600;
     }
 
     cacheElements() {
@@ -132,7 +136,7 @@ export class CanvasRenderer extends BaseComponent {
         });
 
         // Place words
-        wordPlacer.placeWords(this.ctx, imageData.data, {
+        const placedWords = wordPlacer.placeWords(this.ctx, imageData.data, {
             width: canvasWidth,
             height: canvasHeight,
             words: state.words,
@@ -147,6 +151,10 @@ export class CanvasRenderer extends BaseComponent {
             wordColors: state.wordColors || {}
         });
 
+        this.lastPlacedWords = placedWords || [];
+        this.lastWidth = canvasWidth;
+        this.lastHeight = canvasHeight;
+
         // Draw logo overlay if present
         if (state.logoImage) {
             this.drawLogoOverlay(state);
@@ -158,7 +166,9 @@ export class CanvasRenderer extends BaseComponent {
 
         // Enable download buttons
         this.downloadBtn.disabled = false;
-        if (this.downloadSvgBtn) this.downloadSvgBtn.disabled = false;
+        if (this.downloadSvgBtn) {
+            this.downloadSvgBtn.disabled = false;
+        }
 
         // Scroll to canvas
         this.mainCanvas.scrollIntoView({ behavior: 'smooth' });
@@ -257,19 +267,17 @@ export class CanvasRenderer extends BaseComponent {
     }
 
     /**
-     * Download the generated image as High-Res PNG
+     * Download the generated image as PNG
      */
     download() {
         exportService.downloadPNG(this.mainCanvas, 'word-portrait');
     }
 
     /**
-     * Download pure mathematical Vector SVG (Infinite zoom without blur)
+     * Download the generated portrait as Infinite-Zoom Vector SVG
      */
     downloadSVG() {
-        const { canvasWidth, canvasHeight } = this.state;
-        const words = wordPlacer.placedWords || [];
-        exportService.downloadSVG(words, canvasWidth, canvasHeight, 'word-portrait-vector');
+        exportService.downloadSVG(this.lastPlacedWords, this.lastWidth, this.lastHeight, 'word-portrait-vector');
     }
 
     render() {

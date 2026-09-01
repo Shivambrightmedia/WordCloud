@@ -21,45 +21,6 @@ export class ExportService {
     }
 
     /**
-     * Download as pure Vector SVG (infinite crispness / zero blur at any zoom)
-     * @param {Array} placedWords - Array of placed word objects
-     * @param {number} width - Canvas width
-     * @param {number} height - Canvas height
-     * @param {string} filename - Filename
-     */
-    downloadSVG(placedWords, width, height, filename = 'word-portrait-vector') {
-        if (!placedWords || placedWords.length === 0) {
-            console.warn('No placed words to export to SVG');
-            return;
-        }
-
-        const svgHeader = `<?xml version="1.0" encoding="UTF-8"?>\n` +
-            `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">\n` +
-            `  <rect width="100%" height="100%" fill="#ffffff"/>\n` +
-            `  <g text-anchor="middle" dominant-baseline="central">\n`;
-
-        const svgContent = placedWords.map(w => {
-            const escaped = (w.text || '')
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;');
-            return `    <text x="${w.x}" y="${w.y}" font-family="'${w.fontFamily}', sans-serif" font-weight="${w.fontWeight || 700}" font-size="${w.fontSize}" fill="${w.color}">${escaped}</text>`;
-        }).join('\n');
-
-        const svgFooter = `\n  </g>\n</svg>`;
-        const fullSvg = svgHeader + svgContent + svgFooter;
-
-        const blob = new Blob([fullSvg], { type: 'image/svg+xml;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.download = `${filename}-${Date.now()}.svg`;
-        link.href = url;
-        link.click();
-        URL.revokeObjectURL(url);
-    }
-
-    /**
      * Download canvas as JPEG
      * @param {HTMLCanvasElement} canvas - Canvas to export
      * @param {string} filename - Filename (without extension)
@@ -116,6 +77,47 @@ export class ExportService {
             console.error('Failed to copy to clipboard:', error);
             return false;
         }
+    }
+
+    /**
+     * Download portrait as vector SVG (Infinite resolution, razor sharp, zero blur)
+     * @param {Array} placedWords - Array of placed word objects
+     * @param {number} width - Canvas width
+     * @param {number} height - Canvas height
+     * @param {string} filename - Output filename
+     */
+    downloadSVG(placedWords = [], width = 2400, height = 3600, filename = 'word-portrait-vector') {
+        if (!placedWords || placedWords.length === 0) {
+            alert('Please generate a portrait first.');
+            return;
+        }
+
+        let svgContent = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">
+  <rect width="100%" height="100%" fill="#ffffff"/>
+  <g text-anchor="middle" dominant-baseline="central">
+`;
+
+        for (const w of placedWords) {
+            const safeText = String(w.text)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&apos;');
+
+            svgContent += `    <text x="${w.x}" y="${w.y}" font-family="'${w.fontFamily}', sans-serif" font-weight="${w.fontWeight}" font-size="${w.fontSize}px" fill="${w.color}">${safeText}</text>\n`;
+        }
+
+        svgContent += `  </g>\n</svg>`;
+
+        const blob = new Blob([svgContent], { type: 'image/svg+xml;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.download = `${filename}-${Date.now()}.svg`;
+        link.href = url;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1500);
     }
 }
 
