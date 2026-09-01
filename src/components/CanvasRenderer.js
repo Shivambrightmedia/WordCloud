@@ -20,6 +20,7 @@ export class CanvasRenderer extends BaseComponent {
         this.procCtx = null;
         this.generateBtn = null;
         this.downloadBtn = null;
+        this.shareBtn = null;
         this.downloadSvgBtn = null;
         this.loading = null;
         this.emptyState = null;
@@ -37,6 +38,7 @@ export class CanvasRenderer extends BaseComponent {
         this.procCtx = this.processingCanvas.getContext('2d');
         this.generateBtn = this.$('generateBtn');
         this.downloadBtn = this.$('downloadBtn');
+        this.shareBtn = this.$('shareBtn');
         this.downloadSvgBtn = this.$('downloadSvgBtn');
         this.loading = this.$('loadingIndicator');
         this.emptyState = this.$('emptyState');
@@ -45,6 +47,9 @@ export class CanvasRenderer extends BaseComponent {
     bindEvents() {
         this.addListener(this.generateBtn, 'click', () => this.generate());
         this.addListener(this.downloadBtn, 'click', () => this.download());
+        if (this.shareBtn) {
+            this.addListener(this.shareBtn, 'click', () => this.share());
+        }
         if (this.downloadSvgBtn) {
             this.addListener(this.downloadSvgBtn, 'click', () => this.downloadSVG());
         }
@@ -164,8 +169,11 @@ export class CanvasRenderer extends BaseComponent {
         const duration = ((endTime - startTime) / 1000).toFixed(2);
         console.log(`Generation took ${duration}s`);
 
-        // Enable download buttons
+        // Enable download and share buttons
         this.downloadBtn.disabled = false;
+        if (this.shareBtn) {
+            this.shareBtn.disabled = false;
+        }
         if (this.downloadSvgBtn) {
             this.downloadSvgBtn.disabled = false;
         }
@@ -283,6 +291,13 @@ export class CanvasRenderer extends BaseComponent {
      */
     download() {
         exportService.downloadPNG(this.mainCanvas, 'word-portrait');
+    }
+
+    /**
+     * Share generated image using native iOS/iPadOS Share Sheet
+     */
+    share() {
+        exportService.shareImage(this.mainCanvas, 'word-portrait');
     }
 
     /**

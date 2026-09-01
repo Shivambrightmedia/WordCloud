@@ -119,6 +119,43 @@ export class ExportService {
         link.click();
         setTimeout(() => URL.revokeObjectURL(url), 1500);
     }
+
+    /**
+     * Share canvas image using native OS / iOS / iPadOS Share Sheet
+     * @param {HTMLCanvasElement} canvas - Canvas to share
+     * @param {string} filename - Filename (without extension)
+     */
+    async shareImage(canvas, filename = 'word-portrait') {
+        try {
+            const blob = await this.getBlob(canvas, 'image/png');
+            const file = new File([blob], `${filename}-${Date.now()}.png`, { type: 'image/png' });
+
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({
+                    files: [file],
+                    title: 'Word Portrait',
+                    text: 'Created with Word Cloud Generator'
+                });
+                return true;
+            } else if (navigator.share) {
+                await navigator.share({
+                    title: 'Word Portrait',
+                    text: 'Created with Word Cloud Generator',
+                    url: window.location.href
+                });
+                return true;
+            } else {
+                this.downloadPNG(canvas, filename);
+                return true;
+            }
+        } catch (error) {
+            if (error.name !== 'AbortError') {
+                console.error('Share failed:', error);
+                this.downloadPNG(canvas, filename);
+            }
+            return false;
+        }
+    }
 }
 
 // Singleton instance

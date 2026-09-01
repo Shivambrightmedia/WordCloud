@@ -601,9 +601,14 @@
           <button id="generateBtn" class="primary-btn pulse">
             ✨ Generate Portrait
           </button>
-          <button id="downloadBtn" class="secondary-btn" disabled>
-            ↓ Download PNG
-          </button>
+          <div class="download-btn-group" style="display: flex; gap: 8px; width: 100%;">
+            <button id="downloadBtn" class="secondary-btn" style="flex: 1.2;" disabled>
+              ↓ Download PNG
+            </button>
+            <button id="shareBtn" class="secondary-btn share-action-btn" style="flex: 1; background: linear-gradient(135deg, rgba(102, 126, 234, 0.25) 0%, rgba(118, 75, 162, 0.25) 100%); border-color: rgba(118, 75, 162, 0.4); color: #ffffff;" disabled>
+              📤 Share
+            </button>
+          </div>
         </div>
 
       </aside>
