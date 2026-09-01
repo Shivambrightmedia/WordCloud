@@ -170,9 +170,6 @@ export class CanvasRenderer extends BaseComponent {
             this.downloadSvgBtn.disabled = false;
         }
 
-        // Scroll to canvas
-        this.mainCanvas.scrollIntoView({ behavior: 'smooth' });
-
         this.emit(Events.GENERATION_COMPLETE, { duration });
     }
 

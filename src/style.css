@@ -408,13 +408,18 @@ select:focus {
 }
 
 /* Actions */
-.actions {
+.actions,
+.actions-fixed {
   margin-top: auto;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  padding-top: 1rem;
+  gap: 10px;
+  padding: 16px;
+  background: var(--bg-panel);
   border-top: 1px solid var(--border-color);
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
 }
 
 .primary-btn {
@@ -1485,27 +1490,53 @@ canvas {
 /* RESPONSIVE */
 /* ═══════════════════════════════════════════════════════════════ */
 
-@media (max-width: 900px) {
+@media (max-width: 1024px) {
+  body {
+    height: auto;
+    min-height: 100vh;
+    overflow-y: auto;
+  }
+
+  #app {
+    height: auto;
+    min-height: 100vh;
+  }
+
   .workspace {
     flex-direction: column;
+    overflow: visible;
+    height: auto;
   }
 
   .controls {
     width: 100%;
-    min-width: unset;
-    max-height: 50vh;
+    min-width: 100%;
+    max-height: none;
+    overflow: visible;
+    border-right: none;
+    border-bottom: 1px solid var(--border-color);
   }
 
   .accordion-header {
-    padding: 12px 14px;
+    padding: 14px 16px;
   }
 
-  .accordion-title {
-    font-size: 0.85rem;
+  .accordion-content.open {
+    max-height: 60vh;
   }
 
   .preview-area {
-    min-height: 50vh;
+    min-height: 70vh;
+    padding: 1.5rem 1rem;
+    overflow: visible;
+  }
+
+  .actions-fixed {
+    position: sticky;
+    bottom: 0;
+    background: rgba(30, 30, 30, 0.95);
+    backdrop-filter: blur(12px);
+    box-shadow: 0 -4px 25px rgba(0, 0, 0, 0.6);
   }
 }
 
