@@ -25,10 +25,11 @@ const DEFAULT_SIZE_TIERS = [
     { scale: 2.0, attempts: 20000, padding: 1, minClearanceFactor: 0.35 },
     { scale: 1.4, attempts: 40000, padding: 1, minClearanceFactor: 0.28 },
     { scale: 1.0, attempts: 65000, padding: 1, minClearanceFactor: 0.20 },
-    { scale: 0.70, attempts: 90000, padding: 0, minClearanceFactor: 0.12 },
-    { scale: 0.50, attempts: 130000, padding: 0, minClearanceFactor: 0.06 },
-    { scale: 0.38, attempts: 160000, padding: 0, minClearanceFactor: 0.0, isThinEdge: true },
-    { scale: 0.25, attempts: 200000, padding: 0, minClearanceFactor: 0.0, isThinEdge: true }
+    { scale: 0.70, attempts: 90000, padding: 0, minClearanceFactor: 0.14 },
+    { scale: 0.48, attempts: 130000, padding: 0, minClearanceFactor: 0.08 },
+    { scale: 0.32, attempts: 160000, padding: 0, minClearanceFactor: 0.04 },
+    { scale: 0.22, attempts: 190000, padding: 0, minClearanceFactor: 0.02 },
+    { scale: 0.15, attempts: 220000, padding: 0, minClearanceFactor: 0.01 }
 ];
 
 export class WordPlacer {
@@ -388,7 +389,7 @@ export class WordPlacer {
         // Step 3: Process each size tier from largest to smallest
         for (const tier of this.sizeTiers) {
             let fontSizePx = Math.floor(fontSize * tier.scale);
-            if (fontSizePx < 15) fontSizePx = 15;
+            if (fontSizePx < 6) fontSizePx = 6;
             if (fontSizePx > width * 0.85) fontSizePx = Math.floor(width * 0.85);
 
             const font = `${fontWeight} ${fontSizePx}px '${fontFamily}'`;
@@ -396,7 +397,7 @@ export class WordPlacer {
             metricsCtx.font = font;
 
             const isGiantTier = tier.isGiant || tier.scale >= 2.5;
-            const isThinEdge = tier.isThinEdge || tier.scale <= 0.38;
+            const isThinEdge = tier.isThinEdge || tier.scale <= 0.35;
             const tierPadding = tier.padding !== undefined ? tier.padding : (tier.scale >= 2.0 ? 1 : 0);
             const minClearanceFactor = isThinEdge ? 0 : (tier.minClearanceFactor || 0.25);
             const requiredClearance = Math.floor(fontSizePx * minClearanceFactor);
@@ -463,7 +464,7 @@ export class WordPlacer {
         // Step 4: Thin Line & Shirt Collar Sweep
         // Directly detects unvisited thin line/collar pixels and places micro-words along them
         const edgeWords = words.length > 0 ? words : ['Art', 'Life', 'Soul', 'Code'];
-        const edgeFontSizePx = Math.max(15, Math.floor(fontSize * 0.25));
+        const edgeFontSizePx = Math.max(7, Math.floor(fontSize * 0.18));
         const edgeFont = `${fontWeight} ${edgeFontSizePx}px '${fontFamily}'`;
         ctx.font = edgeFont;
         metricsCtx.font = edgeFont;
