@@ -109,7 +109,7 @@ export class CanvasRenderer extends BaseComponent {
     /**
      * Process the actual generation
      */
-    processGeneration() {
+    async processGeneration() {
         const startTime = performance.now();
         const state = this.state;
 
@@ -156,8 +156,8 @@ export class CanvasRenderer extends BaseComponent {
         this.lastHeight = canvasHeight;
 
         // Draw logo overlay if present
-        if (state.logoImage) {
-            this.drawLogoOverlay(state);
+        if (state.logoImage || state.logoDataUrl) {
+            await this.drawLogoOverlay(state);
         }
 
         const endTime = performance.now();
@@ -180,9 +180,10 @@ export class CanvasRenderer extends BaseComponent {
      * Draw logo overlay on canvas
      * @param {Object} state - Current state
      */
-    drawLogoOverlay(state) {
+    async drawLogoOverlay(state) {
+        let logoImage = state.logoImage;
         const {
-            logoImage,
+            logoDataUrl,
             logoPosition = 'center',
             logoScale = 30,
             logoOpacity = 100,
@@ -192,18 +193,31 @@ export class CanvasRenderer extends BaseComponent {
             canvasHeight
         } = state;
 
+        // If logoImage is not ready but logoDataUrl exists, load it on the fly
+        if ((!logoImage || !logoImage.naturalWidth) && logoDataUrl) {
+            logoImage = await new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => resolve(img);
+                img.onerror = () => resolve(null);
+                img.src = logoDataUrl;
+            });
+        }
+
         if (!logoImage) return;
+
+        const nw = logoImage.naturalWidth || logoImage.width;
+        const nh = logoImage.naturalHeight || logoImage.height;
+        if (!nw || !nh) return;
 
         // Calculate logo dimensions
         const maxWidth = canvasWidth * (logoScale / 100);
-        const aspectRatio = logoImage.width / logoImage.height;
+        const aspectRatio = nw / nh;
         const logoWidth = maxWidth;
         const logoHeight = maxWidth / aspectRatio;
 
         // Calculate position based on 9-point grid
         let x, y;
-        // Padding is 2% of the smaller dimension for proportional spacing
-        const padding = Math.min(canvasWidth, canvasHeight) * 0.02;
+        const padding = Math.min(canvasWidth, canvasHeight) * 0.03;
 
         switch (logoPosition) {
             case 'top-left':
@@ -247,23 +261,24 @@ export class CanvasRenderer extends BaseComponent {
                 y = (canvasHeight - logoHeight) / 2;
         }
 
-        // Apply offset
-        x += logoOffsetX;
-        y += logoOffsetY;
+        // Scale offsets proportionally to canvas resolution (reference baseline = 1200px)
+        const scaleFactor = canvasWidth / 1200;
+        x += (Number(logoOffsetX) || 0) * scaleFactor;
+        y += (Number(logoOffsetY) || 0) * scaleFactor;
 
-        // Save context state
+        // Save context state and render on top
         this.ctx.save();
-
-        // Apply opacity
-        this.ctx.globalAlpha = logoOpacity / 100;
+        this.ctx.shadowBlur = 0;
+        this.ctx.shadowColor = 'transparent';
+        this.ctx.shadowOffsetX = 0;
+        this.ctx.shadowOffsetY = 0;
+        this.ctx.globalAlpha = Math.max(0.01, Math.min(1.0, (Number(logoOpacity) || 100) / 100));
 
         // Draw the logo
         this.ctx.drawImage(logoImage, x, y, logoWidth, logoHeight);
-
-        // Restore context state
         this.ctx.restore();
 
-        console.log(`🏷️ Logo drawn at (${x}, ${y}) size: ${logoWidth}x${logoHeight}`);
+        console.log(`🏷️ Overlay Logo drawn at (${Math.round(x)}, ${Math.round(y)}) size: ${Math.round(logoWidth)}x${Math.round(logoHeight)} opacity: ${logoOpacity}%`);
     }
 
     /**

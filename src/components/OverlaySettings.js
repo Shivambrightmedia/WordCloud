@@ -109,9 +109,9 @@ export class OverlaySettings extends BaseComponent {
         const file = e.target.files[0];
         if (!file) return;
 
-        // Validate it's a PNG
-        if (!file.type.includes('png')) {
-            alert('Please upload a PNG file for transparency support.');
+        // Validate image file
+        if (!file.type.startsWith('image/')) {
+            alert('Please upload a valid image file (PNG, JPG, SVG, WebP).');
             return;
         }
 
