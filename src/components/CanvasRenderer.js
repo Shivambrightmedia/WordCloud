@@ -316,17 +316,29 @@ export class CanvasRenderer extends BaseComponent {
     }
 
     /**
-     * Download the generated image as PNG
+     * Download the generated image in chosen format (JPG, PNG, or SVG)
      */
     download() {
-        exportService.downloadPNG(this.mainCanvas, 'word-portrait');
+        const format = this.state.exportFormat || 'jpeg';
+        const quality = this.state.exportQuality || 0.92;
+
+        if (format === 'svg') {
+            this.downloadSVG();
+        } else if (format === 'png') {
+            exportService.downloadPNG(this.mainCanvas, 'word-portrait');
+        } else {
+            // Default to JPG for small file size (~1-3MB vs 25MB+)
+            exportService.downloadJPEG(this.mainCanvas, 'word-portrait', quality);
+        }
     }
 
     /**
      * Share generated image using native iOS/iPadOS Share Sheet
      */
     share() {
-        exportService.shareImage(this.mainCanvas, 'word-portrait');
+        const format = this.state.exportFormat || 'jpeg';
+        const quality = this.state.exportQuality || 0.92;
+        exportService.shareImage(this.mainCanvas, 'word-portrait', format, quality);
     }
 
     /**
@@ -336,8 +348,39 @@ export class CanvasRenderer extends BaseComponent {
         exportService.downloadSVG(this.lastPlacedWords, this.lastWidth, this.lastHeight, 'word-portrait-vector');
     }
 
+    /**
+     * Update UI format buttons and download button text
+     * @param {string} format - Active format ('jpeg' | 'png' | 'svg')
+     */
+    updateFormatUI(format = 'jpeg') {
+        const formatBtns = [
+            { el: this.formatJpgBtn, format: 'jpeg' },
+            { el: this.formatPngBtn, format: 'png' },
+            { el: this.formatSvgBtn, format: 'svg' }
+        ];
+
+        formatBtns.forEach(({ el, format: f }) => {
+            if (el) {
+                if (f === format) {
+                    el.classList.add('active');
+                } else {
+                    el.classList.remove('active');
+                }
+            }
+        });
+
+        if (this.downloadBtn) {
+            const labels = {
+                jpeg: '↓ Download JPG',
+                png: '↓ Download PNG',
+                svg: '↓ Download SVG'
+            };
+            this.downloadBtn.textContent = labels[format] || '↓ Download Image';
+        }
+    }
+
     render() {
-        // Initial render - nothing to do
+        this.updateFormatUI(this.state.exportFormat || 'jpeg');
     }
 }
 
