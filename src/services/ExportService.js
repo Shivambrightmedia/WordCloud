@@ -14,22 +14,67 @@ export class ExportService {
      * @param {number} quality - Quality (0-1)
      */
     downloadPNG(canvas, filename = 'word-portrait', quality = 1.0) {
-        const link = document.createElement('a');
-        link.download = `${filename}-${Date.now()}.png`;
-        link.href = canvas.toDataURL('image/png', quality);
-        link.click();
+        if (canvas.toBlob) {
+            canvas.toBlob((blob) => {
+                if (blob) {
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.download = `${filename}-${Date.now()}.png`;
+                    link.href = url;
+                    link.click();
+                    setTimeout(() => URL.revokeObjectURL(url), 5000);
+                } else {
+                    this._fallbackDownload(canvas.toDataURL('image/png', quality), `${filename}-${Date.now()}.png`);
+                }
+            }, 'image/png', quality);
+        } else {
+            this._fallbackDownload(canvas.toDataURL('image/png', quality), `${filename}-${Date.now()}.png`);
+        }
     }
 
     /**
-     * Download canvas as JPEG
+     * Download canvas as JPEG (significantly smaller file size ~1-3MB compared to 25MB+ PNG)
      * @param {HTMLCanvasElement} canvas - Canvas to export
      * @param {string} filename - Filename (without extension)
-     * @param {number} quality - Quality (0-1)
+     * @param {number} quality - Quality (0-1, default 0.92)
      */
     downloadJPEG(canvas, filename = 'word-portrait', quality = 0.92) {
+        // High-resolution canvases can have transparent pixels which turn black in standard JPEG.
+        // We draw onto an offscreen canvas with a pure white background to guarantee clean output.
+        const exportCanvas = document.createElement('canvas');
+        exportCanvas.width = canvas.width;
+        exportCanvas.height = canvas.height;
+        const ctx = exportCanvas.getContext('2d');
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+        ctx.drawImage(canvas, 0, 0);
+
+        if (exportCanvas.toBlob) {
+            exportCanvas.toBlob((blob) => {
+                if (blob) {
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.download = `${filename}-${Date.now()}.jpg`;
+                    link.href = url;
+                    link.click();
+                    setTimeout(() => URL.revokeObjectURL(url), 5000);
+                } else {
+                    this._fallbackDownload(exportCanvas.toDataURL('image/jpeg', quality), `${filename}-${Date.now()}.jpg`);
+                }
+            }, 'image/jpeg', quality);
+        } else {
+            this._fallbackDownload(exportCanvas.toDataURL('image/jpeg', quality), `${filename}-${Date.now()}.jpg`);
+        }
+    }
+
+    /**
+     * Fallback data URL download helper
+     * @private
+     */
+    _fallbackDownload(href, filename) {
         const link = document.createElement('a');
-        link.download = `${filename}-${Date.now()}.jpg`;
-        link.href = canvas.toDataURL('image/jpeg', quality);
+        link.download = filename;
+        link.href = href;
         link.click();
     }
 
@@ -124,11 +169,28 @@ export class ExportService {
      * Share canvas image using native OS / iOS / iPadOS Share Sheet
      * @param {HTMLCanvasElement} canvas - Canvas to share
      * @param {string} filename - Filename (without extension)
+     * @param {string} format - Image format ('jpeg' or 'png')
+     * @param {number} quality - Quality (0-1)
      */
-    async shareImage(canvas, filename = 'word-portrait') {
+    async shareImage(canvas, filename = 'word-portrait', format = 'jpeg', quality = 0.92) {
         try {
-            const blob = await this.getBlob(canvas, 'image/png');
-            const file = new File([blob], `${filename}-${Date.now()}.png`, { type: 'image/png' });
+            const isJpeg = format === 'jpeg' || format === 'jpg';
+            const mimeType = isJpeg ? 'image/jpeg' : 'image/png';
+            const ext = isJpeg ? 'jpg' : 'png';
+
+            let targetCanvas = canvas;
+            if (isJpeg) {
+                targetCanvas = document.createElement('canvas');
+                targetCanvas.width = canvas.width;
+                targetCanvas.height = canvas.height;
+                const ctx = targetCanvas.getContext('2d');
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(0, 0, targetCanvas.width, targetCanvas.height);
+                ctx.drawImage(canvas, 0, 0);
+            }
+
+            const blob = await this.getBlob(targetCanvas, mimeType, quality);
+            const file = new File([blob], `${filename}-${Date.now()}.${ext}`, { type: mimeType });
 
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
                 await navigator.share({
@@ -145,13 +207,21 @@ export class ExportService {
                 });
                 return true;
             } else {
-                this.downloadPNG(canvas, filename);
+                if (isJpeg) {
+                    this.downloadJPEG(canvas, filename, quality);
+                } else {
+                    this.downloadPNG(canvas, filename);
+                }
                 return true;
             }
         } catch (error) {
             if (error.name !== 'AbortError') {
                 console.error('Share failed:', error);
-                this.downloadPNG(canvas, filename);
+                if (format === 'png') {
+                    this.downloadPNG(canvas, filename);
+                } else {
+                    this.downloadJPEG(canvas, filename, quality);
+                }
             }
             return false;
         }

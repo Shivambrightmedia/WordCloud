@@ -66,6 +66,9 @@ const defaultState = {
     logoOpacity: 100,
     logoOffsetX: 0,
     logoOffsetY: 0,
+    // Export settings (default JPEG for 90%+ smaller file size)
+    exportFormat: 'jpeg',
+    exportQuality: 0.92,
 };
 
 export class StateManager {

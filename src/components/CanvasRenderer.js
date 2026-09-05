@@ -22,6 +22,9 @@ export class CanvasRenderer extends BaseComponent {
         this.downloadBtn = null;
         this.shareBtn = null;
         this.downloadSvgBtn = null;
+        this.formatJpgBtn = null;
+        this.formatPngBtn = null;
+        this.formatSvgBtn = null;
         this.loading = null;
         this.emptyState = null;
 
@@ -40,6 +43,9 @@ export class CanvasRenderer extends BaseComponent {
         this.downloadBtn = this.$('downloadBtn');
         this.shareBtn = this.$('shareBtn');
         this.downloadSvgBtn = this.$('downloadSvgBtn');
+        this.formatJpgBtn = this.$('formatJpgBtn');
+        this.formatPngBtn = this.$('formatPngBtn');
+        this.formatSvgBtn = this.$('formatSvgBtn');
         this.loading = this.$('loadingIndicator');
         this.emptyState = this.$('emptyState');
     }
@@ -53,6 +59,29 @@ export class CanvasRenderer extends BaseComponent {
         if (this.downloadSvgBtn) {
             this.addListener(this.downloadSvgBtn, 'click', () => this.downloadSVG());
         }
+
+        // Export format pill switching (JPG, PNG, SVG)
+        const formatBtns = [
+            { el: this.formatJpgBtn, format: 'jpeg' },
+            { el: this.formatPngBtn, format: 'png' },
+            { el: this.formatSvgBtn, format: 'svg' }
+        ];
+
+        formatBtns.forEach(({ el, format }) => {
+            if (el) {
+                this.addListener(el, 'click', () => {
+                    this.setState({ exportFormat: format });
+                    this.updateFormatUI(format);
+                });
+            }
+        });
+
+        // Listen for external state changes
+        this.onStateChange((state) => {
+            if (state.exportFormat) {
+                this.updateFormatUI(state.exportFormat);
+            }
+        });
 
         // Listen for generation events
         this.on(Events.GENERATION_START, () => this.showLoading());
