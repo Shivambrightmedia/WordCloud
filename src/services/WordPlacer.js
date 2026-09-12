@@ -538,6 +538,7 @@ export class WordPlacer {
 
     /**
      * Refill a vacated bounding box region with smaller words from the word list
+     * Densely packs words using multi-tier scaling and a micro-sweep pass to eliminate white gaps.
      * @param {Uint8ClampedArray} imageData - Mask data
      * @param {Object} targetWord - Target word object { text, x, y, boxW, boxH, fontSize }
      * @param {Array<Object>} existingWords - Currently placed words to avoid collision
@@ -567,42 +568,46 @@ export class WordPlacer {
         const targetW = targetWord.boxW || Math.max(60, targetWord.fontSize * (targetWord.text?.length || 4) * 0.65);
         const targetH = targetWord.boxH || Math.max(25, targetWord.fontSize * 0.85);
 
-        // Region for replacement placements (vacated word area with generous padding)
+        // Region for replacement placements - expand slightly so new words snuggle directly against surrounding words
         const halfW = targetW / 2;
         const halfH = targetH / 2;
-        const minX = Math.max(4, Math.floor(cx - halfW));
-        const maxX = Math.min(width - 4, Math.ceil(cx + halfW));
-        const minY = Math.max(4, Math.floor(cy - halfH));
-        const maxY = Math.min(height - 4, Math.ceil(cy + halfH));
+        const expandX = Math.max(12, Math.floor(targetW * 0.12));
+        const expandY = Math.max(8, Math.floor(targetH * 0.12));
+
+        const minX = Math.max(4, Math.floor(cx - halfW - expandX));
+        const maxX = Math.min(width - 4, Math.ceil(cx + halfW + expandX));
+        const minY = Math.max(4, Math.floor(cy - halfH - expandY));
+        const maxY = Math.min(height - 4, Math.ceil(cy + halfH + expandY));
 
         if (maxX <= minX || maxY <= minY) return [];
 
         // Filter only nearby words that could possibly collide with this region
-        const searchRadiusX = targetW + 60;
-        const searchRadiusY = targetH + 60;
+        const searchRadiusX = targetW + 80;
+        const searchRadiusY = targetH + 80;
         const nearbyWords = existingWords.filter(w => {
             return Math.abs(w.x - cx) < searchRadiusX && Math.abs(w.y - cy) < searchRadiusY;
         });
 
-        // Fast geometric collision check between candidate word and existing / already placed words
+        // Fast geometric collision check with typographic margin tolerance
         const doesCollide = (rx, ry, bW, bH) => {
             const left = rx - bW / 2;
             const right = rx + bW / 2;
             const top = ry - bH / 2;
             const bottom = ry + bH / 2;
-            const pad = 1; // 1px margin for tight artistic packing
+            const padX = Math.max(1, Math.floor(bW * 0.05));
+            const padY = Math.max(1, Math.floor(bH * 0.12));
 
             // Check against nearby existing words
             for (let i = 0; i < nearbyWords.length; i++) {
                 const w = nearbyWords[i];
                 const wHalfW = (w.boxW || (w.fontSize * (w.text?.length || 4) * 0.6)) / 2;
-                const wHalfH = (w.boxH || (w.fontSize * 0.82)) / 2;
+                const wHalfH = (w.boxH || (w.fontSize * 0.72)) / 2;
 
                 if (!(
-                    right - pad <= w.x - wHalfW ||
-                    left + pad >= w.x + wHalfW ||
-                    bottom - pad <= w.y - wHalfH ||
-                    top + pad >= w.y + wHalfH
+                    right - padX <= w.x - wHalfW ||
+                    left + padX >= w.x + wHalfW ||
+                    bottom - padY <= w.y - wHalfH ||
+                    top + padY >= w.y + wHalfH
                 )) {
                     return true;
                 }
@@ -615,10 +620,10 @@ export class WordPlacer {
                 const nwHalfH = nw.boxH / 2;
 
                 if (!(
-                    right - pad <= nw.x - nwHalfW ||
-                    left + pad >= nw.x + nwHalfW ||
-                    bottom - pad <= nw.y - nwHalfH ||
-                    top + pad >= nw.y + nwHalfH
+                    right - padX <= nw.x - nwHalfW ||
+                    left + padX >= nw.x + nwHalfW ||
+                    bottom - padY <= nw.y - nwHalfH ||
+                    top + padY >= nw.y + nwHalfH
                 )) {
                     return true;
                 }
@@ -627,40 +632,40 @@ export class WordPlacer {
             return false;
         };
 
-        // Determine size tiers strictly smaller than original word
+        // Phase 1: Progressive multi-tier random placement
         const baseSize = targetWord.fontSize || 35;
-        const scales = [0.42, 0.28, 0.18, 0.12];
-        const attemptsPerTier = [300, 500, 700, 900];
+        const tiers = [
+            { scale: 0.45, attempts: 1200 },
+            { scale: 0.32, attempts: 2000 },
+            { scale: 0.22, attempts: 3500 },
+            { scale: 0.15, attempts: 5000 },
+            { scale: 0.10, attempts: 7000 },
+            { scale: 0.07, attempts: 9000 }
+        ];
 
-        for (let t = 0; t < scales.length; t++) {
-            let fontSizePx = Math.floor(baseSize * scales[t]);
+        for (const tier of tiers) {
+            let fontSizePx = Math.floor(baseSize * tier.scale);
             if (fontSizePx >= baseSize) fontSizePx = Math.floor(baseSize * 0.5);
             if (fontSizePx < 6) fontSizePx = 6;
 
             const font = `${fontWeight} ${fontSizePx}px '${fontFamily}'`;
             metricsCtx.font = font;
 
-            const attempts = attemptsPerTier[t];
-
-            for (let i = 0; i < attempts; i++) {
+            for (let i = 0; i < tier.attempts; i++) {
                 const rx = minX + Math.floor(Math.random() * (maxX - minX));
                 const ry = minY + Math.floor(Math.random() * (maxY - minY));
 
-                // Check mask at position
                 if (!imageProcessor.checkMask(imageData, rx, ry, width, density)) continue;
 
-                // Pick random word
                 const word = wordList[Math.floor(Math.random() * wordList.length)];
                 if (!word) continue;
 
                 const measure = metricsCtx.measureText(word);
                 const boxW = Math.ceil(measure.width);
-                const boxH = Math.ceil(fontSizePx * 0.82);
+                const boxH = Math.ceil(fontSizePx * 0.72);
 
-                // Relaxed bounds check so words fit into contours
                 if (!this.checkPlacementBounds(imageData, rx, ry, boxW, boxH, width, density, true)) continue;
 
-                // Overlap collision check
                 if (!doesCollide(rx, ry, boxW, boxH)) {
                     const pixelColor = imageProcessor.getPixelColor(imageData, rx, ry, width);
                     const wordColor = this.getWordColor(colorMode, pixelColor, color, customPalette, word, wordColors);
@@ -683,6 +688,52 @@ export class WordPlacer {
                         fontFamily: fontFamily || 'Outfit',
                         fontWeight: fontWeight || 700,
                         fontSize: fontSizePx,
+                        color: colorStr
+                    });
+                }
+            }
+        }
+
+        // Phase 2: Systematic Micro-Filler Sweep (guarantees zero empty white gaps)
+        const sweepFontSize = Math.max(6, Math.min(11, Math.floor(baseSize * 0.10)));
+        const sweepFont = `${fontWeight} ${sweepFontSize}px '${fontFamily}'`;
+        metricsCtx.font = sweepFont;
+
+        const stepX = Math.max(5, Math.floor(sweepFontSize * 1.0));
+        const stepY = Math.max(4, Math.floor(sweepFontSize * 0.65));
+
+        for (let sy = minY; sy <= maxY; sy += stepY) {
+            for (let sx = minX; sx <= maxX; sx += stepX) {
+                if (!imageProcessor.checkMask(imageData, sx, sy, width, density)) continue;
+
+                const word = wordList[Math.floor(Math.random() * wordList.length)];
+                const measure = metricsCtx.measureText(word);
+                const boxW = Math.ceil(measure.width);
+                const boxH = Math.ceil(sweepFontSize * 0.72);
+
+                if (!this.checkPlacementBounds(imageData, sx, sy, boxW, boxH, width, density, true)) continue;
+
+                if (!doesCollide(sx, sy, boxW, boxH)) {
+                    const pixelColor = imageProcessor.getPixelColor(imageData, sx, sy, width);
+                    const wordColor = this.getWordColor(colorMode, pixelColor, color, customPalette, word, wordColors);
+                    let alpha;
+                    if (colorMode === 'source') {
+                        alpha = 1.0;
+                    } else {
+                        const darkness = 1 - (pixelColor.brightness / 255);
+                        alpha = Math.max(0.35, Math.min(1.0, darkness * 1.2));
+                    }
+                    const colorStr = `rgba(${wordColor.r}, ${wordColor.g}, ${wordColor.b}, ${alpha.toFixed(2)})`;
+
+                    newWords.push({
+                        text: word,
+                        x: sx,
+                        y: sy,
+                        boxW: boxW,
+                        boxH: boxH,
+                        fontFamily: fontFamily || 'Outfit',
+                        fontWeight: fontWeight || 700,
+                        fontSize: sweepFontSize,
                         color: colorStr
                     });
                 }
