@@ -17,14 +17,32 @@ export class ImageProcessor {
      * @param {number} b - Blue (0-255)
      * @returns {boolean} True if skin tone
      */
-    isSkinPixel(r, g, b) {
+    /**
+     * Check if a pixel represents human facial skin tone
+     * Uses saturation, chromaticity, and spatial prior (face is in upper body)
+     * @param {number} r - Red (0-255)
+     * @param {number} g - Green (0-255)
+     * @param {number} b - Blue (0-255)
+     * @param {number} y - Current pixel Y position
+     * @param {number} height - Total image height
+     * @returns {boolean} True if facial skin tone
+     */
+    isSkinPixel(r, g, b, y = 0, height = 1000) {
+        // Spatial prior: chest/shoulders/suit in bottom 45% are clothes, not face
+        if (y > height * 0.55) return false;
+
+        // Neutral grey check: grey suit / white shirt have low saturation (max - min < 20)
+        const max = Math.max(r, g, b);
+        const min = Math.min(r, g, b);
+        if (max - min < 20) return false;
+
+        // Skin must have dominant red component
         if (r <= g || r <= b) return false;
-        if (r - g < 6 || r - b < 10) return false;
 
         const cb = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b;
         const cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
 
-        return cb >= 70 && cb <= 135 && cr >= 128 && cr <= 180;
+        return cb >= 75 && cb <= 130 && cr >= 135 && cr <= 175;
     }
 
     /**
@@ -66,9 +84,9 @@ export class ImageProcessor {
                 }
 
                 const idx = (y * width + x) * 4;
-                const isSkin = faceProtect && this.isSkinPixel(copy[idx], copy[idx + 1], copy[idx + 2]);
-                // Zero out artificial edge lines on skin so face never gets fake wrinkles; keep 100% on suit/lapels
-                const factor = isSkin ? 0 : baseFactor;
+                const isSkin = faceProtect && this.isSkinPixel(copy[idx], copy[idx + 1], copy[idx + 2], y, height);
+                // Soften edges on face to prevent fake wrinkles; keep 100% sharp on suit/lapels
+                const factor = isSkin ? baseFactor * 0.15 : baseFactor;
 
                 // Gradient magnitude
                 const magR = Math.sqrt(gxR * gxR + gyR * gyR) * factor;
@@ -91,33 +109,34 @@ export class ImageProcessor {
      * @param {boolean} faceProtect - Whether to protect face highlights and boost clothes
      */
     applyThreshold(imageData, thresholdPercent, faceProtect = true) {
-        const { data } = imageData;
-        const rawThresholdValue = Math.round(255 * (thresholdPercent / 100));
+        const { width, height, data } = imageData;
+        const clothesCutoff = Math.round(255 * (thresholdPercent / 100));
 
         // When faceProtect is ON:
-        // 1. Skin threshold is LOCKED to a clean highlight level (max 108 / ~42%), never getting muddy/dark.
-        // 2. Clothes threshold follows the user's slider (e.g. 60-75%) so jacket/shoulders stay completely filled.
-        const skinThresholdValue = faceProtect
-            ? Math.min(108, rawThresholdValue)
-            : rawThresholdValue;
+        // Clothes use the full user slider (so suit fills in as slider increases).
+        // Face skin uses a protected lighter threshold (~68% of clothes, capped at 118)
+        // so cheeks & forehead remain clean highlights even when slider is high!
+        const faceCutoff = faceProtect
+            ? Math.min(118, Math.round(clothesCutoff * 0.68))
+            : clothesCutoff;
 
-        const clothesThresholdValue = faceProtect
-            ? Math.max(skinThresholdValue, Math.min(235, Math.round(rawThresholdValue * 1.12)))
-            : rawThresholdValue;
+        for (let y = 0; y < height; y++) {
+            const rowIdx = y * width * 4;
+            for (let x = 0; x < width; x++) {
+                const i = rowIdx + x * 4;
+                const r = data[i];
+                const g = data[i + 1];
+                const b = data[i + 2];
+                const brightness = calculateBrightness(r, g, b);
 
-        for (let i = 0; i < data.length; i += 4) {
-            const r = data[i];
-            const g = data[i + 1];
-            const b = data[i + 2];
-            const brightness = calculateBrightness(r, g, b);
+                const isSkin = faceProtect && this.isSkinPixel(r, g, b, y, height);
+                const cutoff = isSkin ? faceCutoff : clothesCutoff;
 
-            const isSkin = faceProtect && this.isSkinPixel(r, g, b);
-            const cutoff = isSkin ? skinThresholdValue : clothesThresholdValue;
-
-            if (brightness > cutoff) {
-                data[i] = 255;
-                data[i + 1] = 255;
-                data[i + 2] = 255;
+                if (brightness > cutoff) {
+                    data[i] = 255;
+                    data[i + 1] = 255;
+                    data[i + 2] = 255;
+                }
             }
         }
     }
