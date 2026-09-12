@@ -32,6 +32,8 @@ export class CanvasRenderer extends BaseComponent {
         this.lastPlacedWords = [];
         this.lastWidth = 2400;
         this.lastHeight = 3600;
+        this.lastImageData = null;
+        this.lastPlacementOptions = null;
     }
 
     cacheElements() {
@@ -58,6 +60,12 @@ export class CanvasRenderer extends BaseComponent {
         }
         if (this.downloadSvgBtn) {
             this.addListener(this.downloadSvgBtn, 'click', () => this.downloadSVG());
+        }
+
+        // Direct click on canvas to remove target word and refill with smaller words
+        if (this.mainCanvas) {
+            this.addListener(this.mainCanvas, 'click', (e) => this.handleCanvasClick(e));
+            this.addListener(this.mainCanvas, 'mousemove', (e) => this.handleCanvasMouseMove(e));
         }
 
         // Export format pill switching (JPG, PNG, SVG)
@@ -170,7 +178,7 @@ export class CanvasRenderer extends BaseComponent {
         });
 
         // Place words
-        const placedWords = wordPlacer.placeWords(this.ctx, imageData.data, {
+        const placementOptions = {
             width: canvasWidth,
             height: canvasHeight,
             words: state.words,
@@ -183,11 +191,15 @@ export class CanvasRenderer extends BaseComponent {
             color: state.color,
             customPalette: state.customPalette,
             wordColors: state.wordColors || {}
-        });
+        };
+
+        const placedWords = wordPlacer.placeWords(this.ctx, imageData.data, placementOptions);
 
         this.lastPlacedWords = placedWords || [];
         this.lastWidth = canvasWidth;
         this.lastHeight = canvasHeight;
+        this.lastImageData = imageData;
+        this.lastPlacementOptions = placementOptions;
 
         // Draw logo overlay if present
         if (state.logoImage || state.logoDataUrl) {
@@ -381,6 +393,158 @@ export class CanvasRenderer extends BaseComponent {
 
     render() {
         this.updateFormatUI(this.state.exportFormat || 'jpeg');
+    }
+
+    /**
+     * Find word at given canvas coordinates
+     * @param {number} x - Canvas X
+     * @param {number} y - Canvas Y
+     * @returns {{ word: Object, index: number } | null}
+     */
+    findWordAt(x, y) {
+        if (!this.lastPlacedWords || this.lastPlacedWords.length === 0) return null;
+
+        let bestMatch = null;
+        let maxFontSize = -1;
+        let matchIndex = -1;
+
+        for (let i = 0; i < this.lastPlacedWords.length; i++) {
+            const w = this.lastPlacedWords[i];
+            const halfW = (w.boxW || (w.fontSize * w.text.length * 0.6)) / 2;
+            const halfH = (w.boxH || (w.fontSize * 0.82)) / 2;
+
+            if (
+                x >= w.x - halfW &&
+                x <= w.x + halfW &&
+                y >= w.y - halfH &&
+                y <= w.y + halfH
+            ) {
+                // If multiple words overlap, select the larger/more prominent word
+                if (w.fontSize > maxFontSize) {
+                    maxFontSize = w.fontSize;
+                    bestMatch = w;
+                    matchIndex = i;
+                }
+            }
+        }
+
+        return bestMatch ? { word: bestMatch, index: matchIndex } : null;
+    }
+
+    /**
+     * Update canvas cursor when hovering over placed words
+     * @param {MouseEvent} e - Mouse event
+     */
+    handleCanvasMouseMove(e) {
+        if (this._isGenerating || !this.lastPlacedWords || this.lastPlacedWords.length === 0) {
+            this.mainCanvas.style.cursor = 'default';
+            return;
+        }
+
+        const rect = this.mainCanvas.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) return;
+
+        const scaleX = this.mainCanvas.width / rect.width;
+        const scaleY = this.mainCanvas.height / rect.height;
+        const clickX = (e.clientX - rect.left) * scaleX;
+        const clickY = (e.clientY - rect.top) * scaleY;
+
+        const hit = this.findWordAt(clickX, clickY);
+        this.mainCanvas.style.cursor = hit ? 'pointer' : 'default';
+    }
+
+    /**
+     * Handle canvas click: delete clicked word and refill with smaller words
+     * @param {MouseEvent} e - Mouse event
+     */
+    async handleCanvasClick(e) {
+        if (this._isGenerating || !this.lastPlacedWords || this.lastPlacedWords.length === 0 || !this.lastImageData) {
+            return;
+        }
+
+        const rect = this.mainCanvas.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) return;
+
+        const scaleX = this.mainCanvas.width / rect.width;
+        const scaleY = this.mainCanvas.height / rect.height;
+        const clickX = (e.clientX - rect.left) * scaleX;
+        const clickY = (e.clientY - rect.top) * scaleY;
+
+        const hit = this.findWordAt(clickX, clickY);
+        if (!hit) return;
+
+        const { word: targetWord, index: wordIndex } = hit;
+
+        // Remove clicked word
+        this.lastPlacedWords.splice(wordIndex, 1);
+
+        // Refill area with smaller words from the word list
+        const options = this.lastPlacementOptions || {
+            width: this.mainCanvas.width,
+            height: this.mainCanvas.height,
+            words: this.state.words,
+            fontFamily: this.state.fontFamily || 'Outfit',
+            fontWeight: this.state.fontWeight || 700,
+            density: this.state.density,
+            colorMode: this.state.colorMode,
+            color: this.state.color,
+            customPalette: this.state.customPalette,
+            wordColors: this.state.wordColors || {}
+        };
+
+        const newSmallWords = wordPlacer.refillRegion(
+            this.lastImageData.data,
+            targetWord,
+            this.lastPlacedWords,
+            options
+        );
+
+        if (newSmallWords.length > 0) {
+            this.lastPlacedWords.push(...newSmallWords);
+        }
+
+        // Fast redraw canvas (< 20ms)
+        await this.redrawCanvas();
+    }
+
+    /**
+     * Fast redraw of placed words and logo overlay without full image reprocessing
+     */
+    async redrawCanvas() {
+        if (!this.ctx || !this.mainCanvas) return;
+        const width = this.mainCanvas.width;
+        const height = this.mainCanvas.height;
+
+        // Reset canvas background
+        this.ctx.fillStyle = '#FFFFFF';
+        this.ctx.fillRect(0, 0, width, height);
+        this.ctx.textBaseline = 'middle';
+        this.ctx.textAlign = 'center';
+
+        const colorMode = this.lastPlacementOptions?.colorMode || this.state.colorMode;
+        if (colorMode === 'source') {
+            this.ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+            this.ctx.shadowBlur = 4;
+            this.ctx.shadowOffsetX = 2;
+            this.ctx.shadowOffsetY = 2;
+        } else {
+            this.ctx.shadowColor = 'transparent';
+            this.ctx.shadowBlur = 0;
+            this.ctx.shadowOffsetX = 0;
+            this.ctx.shadowOffsetY = 0;
+        }
+
+        // Redraw all placed words
+        for (const w of this.lastPlacedWords) {
+            this.ctx.font = `${w.fontWeight || 700} ${w.fontSize}px '${w.fontFamily || 'Outfit'}'`;
+            this.ctx.fillStyle = w.color;
+            this.ctx.fillText(w.text, w.x, w.y);
+        }
+
+        // Redraw logo overlay if present
+        if (this.state.logoImage || this.state.logoDataUrl) {
+            await this.drawLogoOverlay(this.state);
+        }
     }
 }
 

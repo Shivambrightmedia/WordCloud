@@ -463,6 +463,8 @@ export class WordPlacer {
                         text: word,
                         x: rx,
                         y: ry,
+                        boxW: boxW,
+                        boxH: boxH,
                         fontFamily: fontFamily || 'Outfit',
                         fontWeight: fontWeight || 700,
                         fontSize: fontSizePx,
@@ -516,6 +518,8 @@ export class WordPlacer {
                                 text: word,
                                 x: x,
                                 y: y,
+                                boxW: boxW,
+                                boxH: boxH,
                                 fontFamily: fontFamily || 'Outfit',
                                 fontWeight: fontWeight || 700,
                                 fontSize: edgeFontSizePx,
@@ -530,6 +534,167 @@ export class WordPlacer {
         }
 
         return this.placedWords;
+    }
+
+    /**
+     * Refill a vacated bounding box region with smaller words from the word list
+     * @param {Uint8ClampedArray} imageData - Mask data
+     * @param {Object} targetWord - Target word object { text, x, y, boxW, boxH, fontSize }
+     * @param {Array<Object>} existingWords - Currently placed words to avoid collision
+     * @param {Object} options - Placement options
+     * @returns {Array<Object>} Array of newly placed small words
+     */
+    refillRegion(imageData, targetWord, existingWords = [], options = {}) {
+        const {
+            width = 2400,
+            height = 3600,
+            words = ['Love', 'Hope', 'Dream', 'Life', 'Art', 'Code'],
+            fontFamily = 'Outfit',
+            fontWeight = 700,
+            density = 120,
+            colorMode = 'source',
+            color = '#000000',
+            customPalette = [],
+            wordColors = {}
+        } = options;
+
+        const metricsCtx = this.getMetricsContext();
+        const newWords = [];
+
+        const halfW = (targetWord.boxW || (targetWord.fontSize * targetWord.text.length * 0.6)) / 2;
+        const halfH = (targetWord.boxH || (targetWord.fontSize * 0.82)) / 2;
+
+        const minX = Math.max(0, Math.floor(targetWord.x - halfW));
+        const maxX = Math.min(width - 1, Math.ceil(targetWord.x + halfW));
+        const minY = Math.max(0, Math.floor(targetWord.y - halfH));
+        const maxY = Math.min(height - 1, Math.ceil(targetWord.y + halfH));
+
+        if (maxX <= minX || maxY <= minY) return [];
+
+        // Local collision grid with a 24px safety buffer
+        const buffer = 24;
+        const gridMinX = Math.max(0, minX - buffer);
+        const gridMaxX = Math.min(width, maxX + buffer);
+        const gridMinY = Math.max(0, minY - buffer);
+        const gridMaxY = Math.min(height, maxY + buffer);
+
+        const gridW = gridMaxX - gridMinX;
+        const gridH = gridMaxY - gridMinY;
+        if (gridW <= 0 || gridH <= 0) return [];
+
+        const localGrid = new Uint8Array(gridW * gridH);
+
+        // Populate local grid with neighboring words to prevent overlaps
+        for (const w of existingWords) {
+            const wHalfW = (w.boxW || (w.fontSize * w.text.length * 0.6)) / 2;
+            const wHalfH = (w.boxH || (w.fontSize * 0.82)) / 2;
+            const wMinX = w.x - wHalfW;
+            const wMaxX = w.x + wHalfW;
+            const wMinY = w.y - wHalfH;
+            const wMaxY = w.y + wHalfH;
+
+            if (wMaxX >= gridMinX && wMinX <= gridMaxX && wMaxY >= gridMinY && wMinY <= gridMaxY) {
+                const startX = Math.max(0, Math.floor(wMinX - gridMinX));
+                const endX = Math.min(gridW, Math.ceil(wMaxX - gridMinX));
+                const startY = Math.max(0, Math.floor(wMinY - gridMinY));
+                const endY = Math.min(gridH, Math.ceil(wMaxY - gridMinY));
+
+                for (let gy = startY; gy < endY; gy++) {
+                    const rowIdx = gy * gridW;
+                    for (let gx = startX; gx < endX; gx++) {
+                        localGrid[rowIdx + gx] = 1;
+                    }
+                }
+            }
+        }
+
+        // Tiers strictly smaller than target word
+        const baseSize = targetWord.fontSize;
+        const refillTiers = [
+            { scale: 0.42, attempts: 250 },
+            { scale: 0.30, attempts: 400 },
+            { scale: 0.20, attempts: 600 },
+            { scale: 0.14, attempts: 800 }
+        ];
+
+        for (const tier of refillTiers) {
+            let fontSizePx = Math.floor(baseSize * tier.scale);
+            if (fontSizePx > baseSize * 0.5) fontSizePx = Math.floor(baseSize * 0.5);
+            if (fontSizePx < 7) fontSizePx = 7;
+
+            const font = `${fontWeight} ${fontSizePx}px '${fontFamily}'`;
+            metricsCtx.font = font;
+
+            for (let i = 0; i < tier.attempts; i++) {
+                const rx = minX + Math.floor(Math.random() * (maxX - minX));
+                const ry = minY + Math.floor(Math.random() * (maxY - minY));
+
+                if (!imageProcessor.checkMask(imageData, rx, ry, width, density)) continue;
+
+                const word = words[Math.floor(Math.random() * words.length)];
+                if (!word) continue;
+
+                const measure = metricsCtx.measureText(word);
+                const boxW = Math.ceil(measure.width);
+                const boxH = Math.ceil(fontSizePx * 0.82);
+
+                if (!this.checkPlacementBounds(imageData, rx, ry, boxW, boxH, width, density, false)) continue;
+
+                const startLocalX = Math.floor(rx - boxW / 2 - gridMinX);
+                const startLocalY = Math.floor(ry - boxH / 2 - gridMinY);
+                const endLocalX = startLocalX + boxW;
+                const endLocalY = startLocalY + boxH;
+
+                if (startLocalX < 0 || startLocalY < 0 || endLocalX >= gridW || endLocalY >= gridH) continue;
+
+                let collided = false;
+                for (let ly = startLocalY; ly < endLocalY; ly += 2) {
+                    const rowIdx = ly * gridW;
+                    for (let lx = startLocalX; lx < endLocalX; lx += 2) {
+                        if (localGrid[rowIdx + lx] === 1) {
+                            collided = true;
+                            break;
+                        }
+                    }
+                    if (collided) break;
+                }
+
+                if (!collided) {
+                    const pixelColor = imageProcessor.getPixelColor(imageData, rx, ry, width);
+                    const wordColor = this.getWordColor(colorMode, pixelColor, color, customPalette, word, wordColors);
+
+                    let alpha;
+                    if (colorMode === 'source') {
+                        alpha = 1.0;
+                    } else {
+                        const darkness = 1 - (pixelColor.brightness / 255);
+                        alpha = Math.max(0.20, Math.min(1.0, darkness * 1.15));
+                    }
+                    const colorStr = `rgba(${wordColor.r}, ${wordColor.g}, ${wordColor.b}, ${alpha.toFixed(2)})`;
+
+                    for (let ly = startLocalY; ly < endLocalY; ly++) {
+                        const rowIdx = ly * gridW;
+                        for (let lx = startLocalX; lx < endLocalX; lx++) {
+                            localGrid[rowIdx + lx] = 1;
+                        }
+                    }
+
+                    newWords.push({
+                        text: word,
+                        x: rx,
+                        y: ry,
+                        boxW: boxW,
+                        boxH: boxH,
+                        fontFamily: fontFamily || 'Outfit',
+                        fontWeight: fontWeight || 700,
+                        fontSize: fontSizePx,
+                        color: colorStr
+                    });
+                }
+            }
+        }
+
+        return newWords;
     }
 }
 
