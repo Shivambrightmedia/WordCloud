@@ -479,7 +479,7 @@ export class CanvasRenderer extends BaseComponent {
         this.lastPlacedWords.splice(wordIndex, 1);
 
         // Refill area with smaller words from the word list
-        const options = this.lastPlacementOptions || {
+        const options = {
             width: this.mainCanvas.width,
             height: this.mainCanvas.height,
             words: this.state.words,
@@ -489,7 +489,8 @@ export class CanvasRenderer extends BaseComponent {
             colorMode: this.state.colorMode,
             color: this.state.color,
             customPalette: this.state.customPalette,
-            wordColors: this.state.wordColors || {}
+            wordColors: this.state.wordColors || {},
+            ...(this.lastPlacementOptions || {})
         };
 
         const newSmallWords = wordPlacer.refillRegion(
@@ -501,6 +502,9 @@ export class CanvasRenderer extends BaseComponent {
 
         if (newSmallWords.length > 0) {
             this.lastPlacedWords.push(...newSmallWords);
+            console.log(`✨ Replaced "${targetWord.text}" with ${newSmallWords.length} smaller words`);
+        } else {
+            console.warn(`⚠️ Refill placed 0 words for "${targetWord.text}"`);
         }
 
         // Fast redraw canvas (< 20ms)

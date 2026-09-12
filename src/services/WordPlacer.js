@@ -558,108 +558,110 @@ export class WordPlacer {
             wordColors = {}
         } = options;
 
+        const wordList = (words && words.length > 0) ? words : ['Love', 'Hope', 'Dream', 'Life', 'Art', 'Code'];
         const metricsCtx = this.getMetricsContext();
         const newWords = [];
 
-        const halfW = (targetWord.boxW || (targetWord.fontSize * targetWord.text.length * 0.6)) / 2;
-        const halfH = (targetWord.boxH || (targetWord.fontSize * 0.82)) / 2;
+        const cx = targetWord.x;
+        const cy = targetWord.y;
+        const targetW = targetWord.boxW || Math.max(60, targetWord.fontSize * (targetWord.text?.length || 4) * 0.65);
+        const targetH = targetWord.boxH || Math.max(25, targetWord.fontSize * 0.85);
 
-        const minX = Math.max(0, Math.floor(targetWord.x - halfW));
-        const maxX = Math.min(width - 1, Math.ceil(targetWord.x + halfW));
-        const minY = Math.max(0, Math.floor(targetWord.y - halfH));
-        const maxY = Math.min(height - 1, Math.ceil(targetWord.y + halfH));
+        // Region for replacement placements (vacated word area with generous padding)
+        const halfW = targetW / 2;
+        const halfH = targetH / 2;
+        const minX = Math.max(4, Math.floor(cx - halfW));
+        const maxX = Math.min(width - 4, Math.ceil(cx + halfW));
+        const minY = Math.max(4, Math.floor(cy - halfH));
+        const maxY = Math.min(height - 4, Math.ceil(cy + halfH));
 
         if (maxX <= minX || maxY <= minY) return [];
 
-        // Local collision grid with a 24px safety buffer
-        const buffer = 24;
-        const gridMinX = Math.max(0, minX - buffer);
-        const gridMaxX = Math.min(width, maxX + buffer);
-        const gridMinY = Math.max(0, minY - buffer);
-        const gridMaxY = Math.min(height, maxY + buffer);
+        // Filter only nearby words that could possibly collide with this region
+        const searchRadiusX = targetW + 60;
+        const searchRadiusY = targetH + 60;
+        const nearbyWords = existingWords.filter(w => {
+            return Math.abs(w.x - cx) < searchRadiusX && Math.abs(w.y - cy) < searchRadiusY;
+        });
 
-        const gridW = gridMaxX - gridMinX;
-        const gridH = gridMaxY - gridMinY;
-        if (gridW <= 0 || gridH <= 0) return [];
+        // Fast geometric collision check between candidate word and existing / already placed words
+        const doesCollide = (rx, ry, bW, bH) => {
+            const left = rx - bW / 2;
+            const right = rx + bW / 2;
+            const top = ry - bH / 2;
+            const bottom = ry + bH / 2;
+            const pad = 1; // 1px margin for tight artistic packing
 
-        const localGrid = new Uint8Array(gridW * gridH);
+            // Check against nearby existing words
+            for (let i = 0; i < nearbyWords.length; i++) {
+                const w = nearbyWords[i];
+                const wHalfW = (w.boxW || (w.fontSize * (w.text?.length || 4) * 0.6)) / 2;
+                const wHalfH = (w.boxH || (w.fontSize * 0.82)) / 2;
 
-        // Populate local grid with neighboring words to prevent overlaps
-        for (const w of existingWords) {
-            const wHalfW = (w.boxW || (w.fontSize * w.text.length * 0.6)) / 2;
-            const wHalfH = (w.boxH || (w.fontSize * 0.82)) / 2;
-            const wMinX = w.x - wHalfW;
-            const wMaxX = w.x + wHalfW;
-            const wMinY = w.y - wHalfH;
-            const wMaxY = w.y + wHalfH;
-
-            if (wMaxX >= gridMinX && wMinX <= gridMaxX && wMaxY >= gridMinY && wMinY <= gridMaxY) {
-                const startX = Math.max(0, Math.floor(wMinX - gridMinX));
-                const endX = Math.min(gridW, Math.ceil(wMaxX - gridMinX));
-                const startY = Math.max(0, Math.floor(wMinY - gridMinY));
-                const endY = Math.min(gridH, Math.ceil(wMaxY - gridMinY));
-
-                for (let gy = startY; gy < endY; gy++) {
-                    const rowIdx = gy * gridW;
-                    for (let gx = startX; gx < endX; gx++) {
-                        localGrid[rowIdx + gx] = 1;
-                    }
+                if (!(
+                    right - pad <= w.x - wHalfW ||
+                    left + pad >= w.x + wHalfW ||
+                    bottom - pad <= w.y - wHalfH ||
+                    top + pad >= w.y + wHalfH
+                )) {
+                    return true;
                 }
             }
-        }
 
-        // Tiers strictly smaller than target word
-        const baseSize = targetWord.fontSize;
-        const refillTiers = [
-            { scale: 0.42, attempts: 250 },
-            { scale: 0.30, attempts: 400 },
-            { scale: 0.20, attempts: 600 },
-            { scale: 0.14, attempts: 800 }
-        ];
+            // Check against new words already placed in this refill batch
+            for (let i = 0; i < newWords.length; i++) {
+                const nw = newWords[i];
+                const nwHalfW = nw.boxW / 2;
+                const nwHalfH = nw.boxH / 2;
 
-        for (const tier of refillTiers) {
-            let fontSizePx = Math.floor(baseSize * tier.scale);
-            if (fontSizePx > baseSize * 0.5) fontSizePx = Math.floor(baseSize * 0.5);
-            if (fontSizePx < 7) fontSizePx = 7;
+                if (!(
+                    right - pad <= nw.x - nwHalfW ||
+                    left + pad >= nw.x + nwHalfW ||
+                    bottom - pad <= nw.y - nwHalfH ||
+                    top + pad >= nw.y + nwHalfH
+                )) {
+                    return true;
+                }
+            }
+
+            return false;
+        };
+
+        // Determine size tiers strictly smaller than original word
+        const baseSize = targetWord.fontSize || 35;
+        const scales = [0.42, 0.28, 0.18, 0.12];
+        const attemptsPerTier = [300, 500, 700, 900];
+
+        for (let t = 0; t < scales.length; t++) {
+            let fontSizePx = Math.floor(baseSize * scales[t]);
+            if (fontSizePx >= baseSize) fontSizePx = Math.floor(baseSize * 0.5);
+            if (fontSizePx < 6) fontSizePx = 6;
 
             const font = `${fontWeight} ${fontSizePx}px '${fontFamily}'`;
             metricsCtx.font = font;
 
-            for (let i = 0; i < tier.attempts; i++) {
+            const attempts = attemptsPerTier[t];
+
+            for (let i = 0; i < attempts; i++) {
                 const rx = minX + Math.floor(Math.random() * (maxX - minX));
                 const ry = minY + Math.floor(Math.random() * (maxY - minY));
 
+                // Check mask at position
                 if (!imageProcessor.checkMask(imageData, rx, ry, width, density)) continue;
 
-                const word = words[Math.floor(Math.random() * words.length)];
+                // Pick random word
+                const word = wordList[Math.floor(Math.random() * wordList.length)];
                 if (!word) continue;
 
                 const measure = metricsCtx.measureText(word);
                 const boxW = Math.ceil(measure.width);
                 const boxH = Math.ceil(fontSizePx * 0.82);
 
-                if (!this.checkPlacementBounds(imageData, rx, ry, boxW, boxH, width, density, false)) continue;
+                // Relaxed bounds check so words fit into contours
+                if (!this.checkPlacementBounds(imageData, rx, ry, boxW, boxH, width, density, true)) continue;
 
-                const startLocalX = Math.floor(rx - boxW / 2 - gridMinX);
-                const startLocalY = Math.floor(ry - boxH / 2 - gridMinY);
-                const endLocalX = startLocalX + boxW;
-                const endLocalY = startLocalY + boxH;
-
-                if (startLocalX < 0 || startLocalY < 0 || endLocalX >= gridW || endLocalY >= gridH) continue;
-
-                let collided = false;
-                for (let ly = startLocalY; ly < endLocalY; ly += 2) {
-                    const rowIdx = ly * gridW;
-                    for (let lx = startLocalX; lx < endLocalX; lx += 2) {
-                        if (localGrid[rowIdx + lx] === 1) {
-                            collided = true;
-                            break;
-                        }
-                    }
-                    if (collided) break;
-                }
-
-                if (!collided) {
+                // Overlap collision check
+                if (!doesCollide(rx, ry, boxW, boxH)) {
                     const pixelColor = imageProcessor.getPixelColor(imageData, rx, ry, width);
                     const wordColor = this.getWordColor(colorMode, pixelColor, color, customPalette, word, wordColors);
 
@@ -671,13 +673,6 @@ export class WordPlacer {
                         alpha = Math.max(0.20, Math.min(1.0, darkness * 1.15));
                     }
                     const colorStr = `rgba(${wordColor.r}, ${wordColor.g}, ${wordColor.b}, ${alpha.toFixed(2)})`;
-
-                    for (let ly = startLocalY; ly < endLocalY; ly++) {
-                        const rowIdx = ly * gridW;
-                        for (let lx = startLocalX; lx < endLocalX; lx++) {
-                            localGrid[rowIdx + lx] = 1;
-                        }
-                    }
 
                     newWords.push({
                         text: word,
