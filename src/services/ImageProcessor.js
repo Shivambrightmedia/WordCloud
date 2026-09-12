@@ -11,11 +11,29 @@ import { calculateBrightness, hexToRgb, clamp } from '../utils/colorUtils.js';
 
 export class ImageProcessor {
     /**
+     * Check if a pixel represents human skin tone using YCbCr chromaticity
+     * @param {number} r - Red (0-255)
+     * @param {number} g - Green (0-255)
+     * @param {number} b - Blue (0-255)
+     * @returns {boolean} True if skin tone
+     */
+    isSkinPixel(r, g, b) {
+        if (r <= g || r <= b) return false;
+        if (r - g < 10 || r - b < 15) return false;
+
+        const cb = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b;
+        const cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
+
+        return cb >= 75 && cb <= 128 && cr >= 132 && cr <= 175;
+    }
+
+    /**
      * Apply Sobel edge detection to image data
      * @param {ImageData} imageData - Canvas image data
      * @param {number} strength - Edge strength (0-10)
+     * @param {boolean} faceProtect - Whether to soften facial skin wrinkles
      */
-    applyEdgeDetection(imageData, strength) {
+    applyEdgeDetection(imageData, strength, faceProtect = true) {
         if (strength <= 0) return;
 
         const { width, height, data } = imageData;
@@ -24,7 +42,7 @@ export class ImageProcessor {
         // Sobel kernels
         const sobelX = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
         const sobelY = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
-        const factor = strength / 5;
+        const baseFactor = strength / 5;
 
         for (let y = 1; y < height - 1; y++) {
             for (let x = 1; x < width - 1; x++) {
@@ -47,12 +65,15 @@ export class ImageProcessor {
                     }
                 }
 
+                const idx = (y * width + x) * 4;
+                const isSkin = faceProtect && this.isSkinPixel(copy[idx], copy[idx + 1], copy[idx + 2]);
+                // Soften edges on skin to prevent fake wrinkles; keep 100% sharp on clothes/lapels
+                const factor = isSkin ? baseFactor * 0.30 : baseFactor;
+
                 // Gradient magnitude
                 const magR = Math.sqrt(gxR * gxR + gyR * gyR) * factor;
                 const magG = Math.sqrt(gxG * gxG + gyG * gyG) * factor;
                 const magB = Math.sqrt(gxB * gxB + gyB * gyB) * factor;
-
-                const idx = (y * width + x) * 4;
 
                 // Blend edge with original (darken edges)
                 data[idx] = Math.max(0, copy[idx] - magR);
@@ -64,17 +85,29 @@ export class ImageProcessor {
 
     /**
      * Apply threshold to image data - pixels above threshold become white
+     * Dual-thresholding protects face highlights while preserving clothes
      * @param {ImageData} imageData - Canvas image data
      * @param {number} thresholdPercent - Threshold percentage (0-100)
+     * @param {boolean} faceProtect - Whether to protect face highlights and boost clothes
      */
-    applyThreshold(imageData, thresholdPercent) {
+    applyThreshold(imageData, thresholdPercent, faceProtect = true) {
         const { data } = imageData;
-        const thresholdValue = Math.round(255 * (thresholdPercent / 100));
+        const skinThresholdValue = Math.round(255 * (thresholdPercent / 100));
+        // Boost threshold for non-skin (clothes/suit/silhouette) so light fabrics remain dark & filled
+        const clothesThresholdValue = faceProtect
+            ? Math.min(235, Math.round(skinThresholdValue + (255 - skinThresholdValue) * 0.45))
+            : skinThresholdValue;
 
         for (let i = 0; i < data.length; i += 4) {
-            const brightness = calculateBrightness(data[i], data[i + 1], data[i + 2]);
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+            const brightness = calculateBrightness(r, g, b);
 
-            if (brightness > thresholdValue) {
+            const isSkin = faceProtect && this.isSkinPixel(r, g, b);
+            const cutoff = isSkin ? skinThresholdValue : clothesThresholdValue;
+
+            if (brightness > cutoff) {
                 data[i] = 255;
                 data[i + 1] = 255;
                 data[i + 2] = 255;
@@ -125,7 +158,8 @@ export class ImageProcessor {
             threshold = 44,
             edges = 0,
             negative = false,
-            negativeColor = '#555555'
+            negativeColor = '#555555',
+            faceProtect = true
         } = options;
 
         // Calculate dimensions with margin
@@ -172,10 +206,10 @@ export class ImageProcessor {
 
         // Apply filters
         if (edges > 0) {
-            this.applyEdgeDetection(imageData, edges);
+            this.applyEdgeDetection(imageData, edges, faceProtect);
         }
 
-        this.applyThreshold(imageData, threshold);
+        this.applyThreshold(imageData, threshold, faceProtect);
 
         if (negative) {
             this.applyNegative(imageData, threshold, negativeColor);

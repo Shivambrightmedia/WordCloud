@@ -31,6 +31,7 @@ import { eventBus, Events } from './EventBus.js';
  * @property {boolean} negative - Invert colors
  * @property {string} negativeColor - Color for negative fill
  * @property {number} margin - Border margin percentage (0-50)
+ * @property {boolean} faceProtect - Protect facial skin highlights & boost clothes
  */
 
 /** @type {AppState} */
@@ -58,6 +59,7 @@ const defaultState = {
     negative: false,
     negativeColor: '#555555',
     margin: 0,
+    faceProtect: true,
     // Logo/Overlay settings
     logoImage: null,
     logoDataUrl: null,
