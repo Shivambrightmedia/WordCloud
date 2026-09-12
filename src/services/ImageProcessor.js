@@ -19,12 +19,12 @@ export class ImageProcessor {
      */
     isSkinPixel(r, g, b) {
         if (r <= g || r <= b) return false;
-        if (r - g < 10 || r - b < 15) return false;
+        if (r - g < 6 || r - b < 10) return false;
 
         const cb = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b;
         const cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
 
-        return cb >= 75 && cb <= 128 && cr >= 132 && cr <= 175;
+        return cb >= 70 && cb <= 135 && cr >= 128 && cr <= 180;
     }
 
     /**
@@ -67,8 +67,8 @@ export class ImageProcessor {
 
                 const idx = (y * width + x) * 4;
                 const isSkin = faceProtect && this.isSkinPixel(copy[idx], copy[idx + 1], copy[idx + 2]);
-                // Soften edges on skin to prevent fake wrinkles; keep 100% sharp on clothes/lapels
-                const factor = isSkin ? baseFactor * 0.30 : baseFactor;
+                // Zero out artificial edge lines on skin so face never gets fake wrinkles; keep 100% on suit/lapels
+                const factor = isSkin ? 0 : baseFactor;
 
                 // Gradient magnitude
                 const magR = Math.sqrt(gxR * gxR + gyR * gyR) * factor;
@@ -92,11 +92,18 @@ export class ImageProcessor {
      */
     applyThreshold(imageData, thresholdPercent, faceProtect = true) {
         const { data } = imageData;
-        const skinThresholdValue = Math.round(255 * (thresholdPercent / 100));
-        // Boost threshold for non-skin (clothes/suit/silhouette) so light fabrics remain dark & filled
+        const rawThresholdValue = Math.round(255 * (thresholdPercent / 100));
+
+        // When faceProtect is ON:
+        // 1. Skin threshold is LOCKED to a clean highlight level (max 108 / ~42%), never getting muddy/dark.
+        // 2. Clothes threshold follows the user's slider (e.g. 60-75%) so jacket/shoulders stay completely filled.
+        const skinThresholdValue = faceProtect
+            ? Math.min(108, rawThresholdValue)
+            : rawThresholdValue;
+
         const clothesThresholdValue = faceProtect
-            ? Math.min(235, Math.round(skinThresholdValue + (255 - skinThresholdValue) * 0.45))
-            : skinThresholdValue;
+            ? Math.max(skinThresholdValue, Math.min(235, Math.round(rawThresholdValue * 1.12)))
+            : rawThresholdValue;
 
         for (let i = 0; i < data.length; i += 4) {
             const r = data[i];
