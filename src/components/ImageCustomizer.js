@@ -19,7 +19,6 @@ export class ImageCustomizer extends BaseComponent {
         this.edgesValue = null;
         this.negativeToggle = null;
         this.negativeColor = null;
-        this.faceProtectToggle = null;
         this.marginInput = null;
         this.marginValue = null;
         this.togglePreviewBtn = null;
@@ -37,7 +36,6 @@ export class ImageCustomizer extends BaseComponent {
         this.edgesValue = this.$('edgesValue');
         this.negativeToggle = this.$('negativeToggle');
         this.negativeColor = this.$('negativeColor');
-        this.faceProtectToggle = this.$('faceProtectToggle');
         this.marginInput = this.$('marginInput');
         this.marginValue = this.$('marginValue');
         this.togglePreviewBtn = this.$('togglePreviewBtn');
@@ -76,14 +74,6 @@ export class ImageCustomizer extends BaseComponent {
                 this.updatePreview();
             }
         });
-
-        // Face / Skin Protection toggle
-        if (this.faceProtectToggle) {
-            this.addListener(this.faceProtectToggle, 'change', (e) => {
-                this.setState({ faceProtect: e.target.checked });
-                this.updatePreview();
-            });
-        }
 
         // Margin slider
         this.addListener(this.marginInput, 'input', (e) => {
@@ -162,7 +152,7 @@ export class ImageCustomizer extends BaseComponent {
      * @param {boolean} showOriginal - Show original image without processing
      */
     updatePreview(showOriginal = false) {
-        const { image, threshold, edges, negative, negativeColor, margin, faceProtect = true } = this.state;
+        const { image, threshold, edges, negative, negativeColor, margin } = this.state;
 
         if (!image) return;
 
@@ -198,10 +188,10 @@ export class ImageCustomizer extends BaseComponent {
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
         if (edges > 0) {
-            imageProcessor.applyEdgeDetection(imageData, edges, faceProtect);
+            imageProcessor.applyEdgeDetection(imageData, edges);
         }
 
-        imageProcessor.applyThreshold(imageData, threshold, faceProtect);
+        imageProcessor.applyThreshold(imageData, threshold);
 
         if (negative) {
             imageProcessor.applyNegative(imageData, threshold, negativeColor);
@@ -224,10 +214,6 @@ export class ImageCustomizer extends BaseComponent {
 
         this.negativeToggle.checked = state.negative;
         this.negativeColor.value = state.negativeColor;
-
-        if (this.faceProtectToggle) {
-            this.faceProtectToggle.checked = state.faceProtect !== false;
-        }
 
         this.marginInput.value = state.margin;
         this.marginValue.textContent = `${state.margin}%`;

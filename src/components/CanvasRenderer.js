@@ -174,8 +174,7 @@ export class CanvasRenderer extends BaseComponent {
             threshold: state.threshold,
             edges: state.edges,
             negative: state.negative,
-            negativeColor: state.negativeColor,
-            faceProtect: state.faceProtect !== false
+            negativeColor: state.negativeColor
         });
 
         // Place words
