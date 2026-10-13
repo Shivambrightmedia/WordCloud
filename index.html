@@ -569,6 +569,81 @@
         </div>
 
         <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- ANIMATION & GIF SECTION -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <div class="accordion-section" data-section="animation">
+          <div class="accordion-header" data-toggle="animation">
+            <span class="accordion-icon">🎬</span>
+            <span class="accordion-title">ANIMATION & GIF</span>
+            <span class="accordion-arrow">▶</span>
+          </div>
+          <div class="accordion-content" id="section-animation">
+            <div class="accordion-inner">
+              <!-- Animation Effect -->
+              <div class="control-group">
+                <label for="animationEffectSelect">Motion Effect</label>
+                <select id="animationEffectSelect">
+                  <option value="pulse" selected>Breathing Pulse (In-Place Scale)</option>
+                  <option value="wave">Dynamic Wave (Diagonal Ripple)</option>
+                  <option value="float">Organic Float (Levitating Drift)</option>
+                  <option value="shimmer">Star Shimmer (Luminous Glints)</option>
+                  <option value="breathe">Harmonious Respiration (Global Breath)</option>
+                </select>
+                <div class="help-text">Words gently animate in-place while preserving facial geometry.</div>
+              </div>
+
+              <!-- Speed -->
+              <div class="control-group compact">
+                <label>Animation Speed</label>
+                <div class="slider-row">
+                  <input type="range" id="animationSpeedInput" min="0.5" max="2.5" value="1.0" step="0.1">
+                  <span class="slider-value" id="animationSpeedValue">1.0×</span>
+                </div>
+              </div>
+
+              <!-- Intensity -->
+              <div class="control-group compact">
+                <label>Motion Intensity</label>
+                <div class="slider-row">
+                  <input type="range" id="animationIntensityInput" min="0.2" max="2.0" value="1.0" step="0.1">
+                  <span class="slider-value" id="animationIntensityValue">1.0×</span>
+                </div>
+              </div>
+
+              <!-- FPS -->
+              <div class="control-group compact">
+                <label for="animationFpsSelect">Frame Rate</label>
+                <select id="animationFpsSelect">
+                  <option value="10">10 FPS (Compact File Size)</option>
+                  <option value="15" selected>15 FPS (Smooth - Recommended)</option>
+                  <option value="20">20 FPS (Ultra Smooth)</option>
+                </select>
+              </div>
+
+              <!-- GIF Resolution -->
+              <div class="control-group compact">
+                <label for="gifResSelect">GIF Resolution</label>
+                <select id="gifResSelect">
+                  <option value="small">Small (400px wide, ~1-2 MB)</option>
+                  <option value="medium" selected>Standard (600px wide, ~2-4 MB)</option>
+                  <option value="hd">HD (800px wide, ~5-8 MB)</option>
+                </select>
+              </div>
+
+              <!-- Live Preview Toggle -->
+              <button id="previewAnimationBtn" class="secondary-btn" style="width: 100%; margin-bottom: 8px;">
+                ▶ Live Animation Preview
+              </button>
+
+              <!-- Export GIF Direct Button -->
+              <button id="exportGifBtn" class="primary-btn" style="width: 100%; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border: none;">
+                🎬 Export Animated GIF
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════════════ -->
         <!-- PRESETS SECTION -->
         <!-- ═══════════════════════════════════════════════════════════════ -->
         <div class="accordion-section" data-section="presets">
@@ -607,7 +682,14 @@
               <button type="button" class="format-pill-btn active" id="formatJpgBtn" data-format="jpeg" title="JPEG format - Small file size (1-3 MB), crisp & fast">JPG (Small)</button>
               <button type="button" class="format-pill-btn" id="formatPngBtn" data-format="png" title="PNG format - Lossless uncompressed (~25 MB)">PNG</button>
               <button type="button" class="format-pill-btn" id="formatSvgBtn" data-format="svg" title="SVG format - Infinite resolution vector">SVG</button>
+              <button type="button" class="format-pill-btn" id="formatGifBtn" data-format="gif" title="GIF format - Animated in-place words">GIF (Anim)</button>
             </div>
+          </div>
+          <div id="gifProgressContainer" class="gif-progress-container hidden" style="margin-bottom: 8px; width: 100%;">
+            <div class="progress-bar-track" style="background: rgba(255,255,255,0.12); border-radius: 4px; height: 6px; overflow: hidden; width: 100%;">
+              <div id="gifProgressBar" class="progress-bar-fill" style="background: linear-gradient(90deg, #f093fb, #f5576c); height: 100%; width: 0%; transition: width 0.15s ease;"></div>
+            </div>
+            <div id="gifProgressText" class="progress-text" style="font-size: 0.75rem; color: #cbd5e0; margin-top: 4px; text-align: center;">Rendering frames...</div>
           </div>
           <div class="download-btn-group" style="display: flex; gap: 8px; width: 100%;">
             <button id="downloadBtn" class="secondary-btn" style="flex: 1.2;" disabled>

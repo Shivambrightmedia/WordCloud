@@ -6,6 +6,9 @@
  * - OCP: Can add new export formats
  */
 
+import { gifEncoderService } from './GifEncoderService.js';
+import { wordAnimator } from './WordAnimator.js';
+
 export class ExportService {
     /**
      * Download canvas as PNG
@@ -225,6 +228,84 @@ export class ExportService {
             }
             return false;
         }
+    }
+
+    /**
+     * Export animated GIF of word portrait
+     * @param {Array} placedWords - Array of placed word objects
+     * @param {number} width - Base canvas width
+     * @param {number} height - Base canvas height
+     * @param {Object} options - Animation & GIF export settings
+     * @param {Function} [onProgress] - Progress callback
+     * @returns {Promise<Blob|null>}
+     */
+    async downloadGIF(placedWords = [], width = 2400, height = 3600, options = {}, onProgress = null) {
+        if (!placedWords || placedWords.length === 0) {
+            alert('Please generate a portrait first.');
+            return null;
+        }
+
+        // Determine optimal GIF export resolution
+        const resChoice = options.gifResolution || 'medium';
+        let targetW = 600;
+        if (resChoice === 'small') {
+            targetW = 400;
+        } else if (resChoice === 'hd') {
+            targetW = 800;
+        } else {
+            targetW = 600;
+        }
+        const targetH = Math.round(targetW * (height / width));
+
+        const scaleFactor = targetW / width;
+        const fps = Math.min(24, Math.max(8, options.animationFps || 15));
+        const duration = Math.min(4, Math.max(1, options.animationDuration || 2.0));
+        const totalFrames = Math.round(fps * duration);
+
+        const offscreenCanvas = document.createElement('canvas');
+        offscreenCanvas.width = targetW;
+        offscreenCanvas.height = targetH;
+        const offscreenCtx = offscreenCanvas.getContext('2d', { willReadFrequently: true });
+
+        const frames = [];
+        for (let i = 0; i < totalFrames; i++) {
+            const progress = i / totalFrames;
+            wordAnimator.renderFrame(offscreenCtx, placedWords, progress, {
+                width: targetW,
+                height: targetH,
+                scaleFactor,
+                effect: options.animationEffect || 'pulse',
+                intensity: options.animationIntensity || 1.0,
+                colorMode: options.colorMode || 'source',
+                backgroundColor: '#FFFFFF'
+            });
+
+            const frameImageData = offscreenCtx.getImageData(0, 0, targetW, targetH);
+            frames.push(frameImageData);
+
+            if (onProgress) {
+                const percent = Math.round(((i + 1) / totalFrames) * 45);
+                onProgress({ phase: 'rendering', current: i + 1, total: totalFrames, percent });
+            }
+            await new Promise(r => setTimeout(r, 0));
+        }
+
+        const blob = await gifEncoderService.encodeFrames(frames, { fps }, (curr, tot) => {
+            if (onProgress) {
+                const percent = 45 + Math.round((curr / tot) * 55);
+                onProgress({ phase: 'encoding', current: curr, total: tot, percent });
+            }
+        });
+
+        // Trigger automatic download
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.download = `word-portrait-${options.animationEffect || 'animated'}-${Date.now()}.gif`;
+        link.href = url;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+
+        return blob;
     }
 }
 

@@ -107,6 +107,16 @@ export const Events = {
     PRESET_SAVED: 'preset:saved',
     PRESET_LOADED: 'preset:loaded',
     PRESET_DELETED: 'preset:deleted',
+
+    // Animation & GIF events
+    ANIMATION_START: 'animation:start',
+    ANIMATION_STOP: 'animation:stop',
+    ANIMATION_FRAME: 'animation:frame',
+    ANIMATION_PREVIEW_TOGGLE: 'animation:preview:toggle',
+    GIF_EXPORT_START: 'gif:export:start',
+    GIF_EXPORT_PROGRESS: 'gif:export:progress',
+    GIF_EXPORT_COMPLETE: 'gif:export:complete',
+    GIF_EXPORT_ERROR: 'gif:export:error',
 };
 
 // Create singleton instance

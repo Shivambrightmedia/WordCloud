@@ -15,8 +15,17 @@ src/
 ├── services/                        # Business Logic Services
 │   ├── ImageProcessor.js            # Image processing algorithms
 │   ├── WordPlacer.js                # Word placement algorithm
+│   ├── WordAnimator.js              # Word animation frame orchestrator
+│   ├── GifEncoderService.js         # Pure JS GIF89a + LZW + palette encoder
 │   ├── PresetService.js             # Preset persistence
-│   └── ExportService.js             # Export/download functionality
+│   ├── ExportService.js             # Export/download functionality (JPG, PNG, SVG, GIF)
+│   └── animator/                    # Pluggable Animation Strategies (Strategy Pattern)
+│       ├── BaseAnimationStrategy.js # Abstract animation strategy
+│       ├── PulseStrategy.js         # Breathing in-place scale pulsation
+│       ├── WaveStrategy.js          # Directional luminance & scale ripple
+│       ├── FloatStrategy.js         # Organic levitation / drift in place
+│       ├── ShimmerStrategy.js       # Periodic luminous sparkle glints
+│       └── BreatheStrategy.js       # Synchronized global respiration
 │
 ├── components/                      # UI Components
 │   ├── BaseComponent.js             # Abstract base class (Template Method pattern)
@@ -25,7 +34,8 @@ src/
 │   ├── WordSettings.js              # Word dictionary input
 │   ├── ColorSettings.js             # Color mode & palette
 │   ├── ResolutionSettings.js        # Resolution & transform controls
-│   ├── CanvasRenderer.js            # Main canvas rendering
+│   ├── CanvasRenderer.js            # Main canvas rendering & live animation loop
+│   ├── AnimationSettings.js         # Animation effect & GIF export controls UI
 │   └── PresetPanel.js               # Preset management UI
 │
 └── utils/                           # Utility Functions
@@ -45,6 +55,10 @@ Each class has exactly one reason to change:
 |-------|----------------|
 | `ImageProcessor` | Image manipulation algorithms |
 | `WordPlacer` | Word placement and collision detection |
+| `WordAnimator` | Word frame transformation and strategy execution |
+| `GifEncoderService` | GIF89a byte packing, color quantization, and LZW encoding |
+| `ExportService` | File export downloads (JPEG, PNG, SVG, GIF) |
+| `AnimationSettings` | Animation controls and live preview UI |
 | `PresetService` | Preset persistence to localStorage |
 | `ImageUploader` | File upload handling |
 | `ColorSettings` | Color mode UI |

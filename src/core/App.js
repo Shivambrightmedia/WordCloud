@@ -23,6 +23,7 @@ import { createOverlaySettings } from '../components/OverlaySettings.js';
 import { createResolutionSettings } from '../components/ResolutionSettings.js';
 import { createCanvasRenderer } from '../components/CanvasRenderer.js';
 import { createPresetPanel } from '../components/PresetPanel.js';
+import { createAnimationSettings } from '../components/AnimationSettings.js';
 import { createAccordion } from '../components/Accordion.js';
 
 export class App {
@@ -74,6 +75,7 @@ export class App {
                 createResolutionSettings(),
                 createCanvasRenderer(),
                 createPresetPanel(),
+                createAnimationSettings(),
             ];
 
             // Setup global event handlers

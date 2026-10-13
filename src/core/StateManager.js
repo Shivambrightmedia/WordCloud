@@ -69,6 +69,15 @@ const defaultState = {
     // Export settings (default JPEG for 90%+ smaller file size)
     exportFormat: 'jpeg',
     exportQuality: 0.92,
+    // Animation & GIF settings
+    animationEnabled: false,
+    animationEffect: 'pulse', // 'pulse' | 'wave' | 'float' | 'shimmer' | 'breathe'
+    animationSpeed: 1.0,
+    animationIntensity: 1.0,
+    animationFps: 15,
+    animationDuration: 2.0, // seconds
+    gifResolution: 'medium', // 'small' (400x600) | 'medium' (600x900) | 'hd' (800x1200)
+    isAnimationPlaying: false,
 };
 
 export class StateManager {

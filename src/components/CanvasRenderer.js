@@ -9,6 +9,7 @@ import { Events } from '../core/EventBus.js';
 import { imageProcessor } from '../services/ImageProcessor.js';
 import { wordPlacer } from '../services/WordPlacer.js';
 import { exportService } from '../services/ExportService.js';
+import { wordAnimator } from '../services/WordAnimator.js';
 
 export class CanvasRenderer extends BaseComponent {
     constructor() {
@@ -25,10 +26,14 @@ export class CanvasRenderer extends BaseComponent {
         this.formatJpgBtn = null;
         this.formatPngBtn = null;
         this.formatSvgBtn = null;
+        this.formatGifBtn = null;
         this.loading = null;
         this.emptyState = null;
 
         this._isGenerating = false;
+        this._isExportingGif = false;
+        this._isAnimationPlaying = false;
+        this._animationRafId = null;
         this.lastPlacedWords = [];
         this.lastWidth = 2400;
         this.lastHeight = 3600;
@@ -48,6 +53,7 @@ export class CanvasRenderer extends BaseComponent {
         this.formatJpgBtn = this.$('formatJpgBtn');
         this.formatPngBtn = this.$('formatPngBtn');
         this.formatSvgBtn = this.$('formatSvgBtn');
+        this.formatGifBtn = this.$('formatGifBtn');
         this.loading = this.$('loadingIndicator');
         this.emptyState = this.$('emptyState');
     }
@@ -68,11 +74,12 @@ export class CanvasRenderer extends BaseComponent {
             this.addListener(this.mainCanvas, 'mousemove', (e) => this.handleCanvasMouseMove(e));
         }
 
-        // Export format pill switching (JPG, PNG, SVG)
+        // Export format pill switching (JPG, PNG, SVG, GIF)
         const formatBtns = [
             { el: this.formatJpgBtn, format: 'jpeg' },
             { el: this.formatPngBtn, format: 'png' },
-            { el: this.formatSvgBtn, format: 'svg' }
+            { el: this.formatSvgBtn, format: 'svg' },
+            { el: this.formatGifBtn, format: 'gif' }
         ];
 
         formatBtns.forEach(({ el, format }) => {
@@ -84,6 +91,10 @@ export class CanvasRenderer extends BaseComponent {
             }
         });
 
+        // Listen for animation events
+        this.on(Events.ANIMATION_PREVIEW_TOGGLE, () => this.toggleAnimationPreview());
+        this.on(Events.GIF_EXPORT_START, () => this.downloadGIF());
+
         // Listen for external state changes
         this.onStateChange((state) => {
             if (state.exportFormat) {
@@ -92,7 +103,10 @@ export class CanvasRenderer extends BaseComponent {
         });
 
         // Listen for generation events
-        this.on(Events.GENERATION_START, () => this.showLoading());
+        this.on(Events.GENERATION_START, () => {
+            this.stopAnimationPreview();
+            this.showLoading();
+        });
         this.on(Events.GENERATION_COMPLETE, () => this.hideLoading());
         this.on(Events.GENERATION_ERROR, (error) => {
             this.hideLoading();
@@ -328,13 +342,15 @@ export class CanvasRenderer extends BaseComponent {
     }
 
     /**
-     * Download the generated image in chosen format (JPG, PNG, or SVG)
+     * Download the generated image in chosen format (JPG, PNG, SVG, or GIF)
      */
     download() {
         const format = this.state.exportFormat || 'jpeg';
         const quality = this.state.exportQuality || 0.92;
 
-        if (format === 'svg') {
+        if (format === 'gif') {
+            this.downloadGIF();
+        } else if (format === 'svg') {
             this.downloadSVG();
         } else if (format === 'png') {
             exportService.downloadPNG(this.mainCanvas, 'word-portrait');
@@ -361,14 +377,143 @@ export class CanvasRenderer extends BaseComponent {
     }
 
     /**
+     * Export animated GIF with in-place animating words
+     */
+    async downloadGIF() {
+        if (this._isExportingGif) return;
+
+        if (!this.lastPlacedWords || this.lastPlacedWords.length === 0) {
+            alert('Please generate a portrait first.');
+            return;
+        }
+
+        this._isExportingGif = true;
+        const wasPlaying = this._isAnimationPlaying;
+        if (wasPlaying) {
+            this.stopAnimationPreview();
+        }
+
+        if (this.downloadBtn) {
+            this.downloadBtn.disabled = true;
+            this.downloadBtn.textContent = '⏳ Preparing GIF...';
+        }
+
+        try {
+            await exportService.downloadGIF(
+                this.lastPlacedWords,
+                this.mainCanvas.width,
+                this.mainCanvas.height,
+                this.state,
+                (progress) => {
+                    this.emit(Events.GIF_EXPORT_PROGRESS, progress);
+                    if (this.downloadBtn) {
+                        const phaseName = progress.phase === 'rendering' ? 'Frames' : 'Encoding';
+                        this.downloadBtn.textContent = `⏳ ${phaseName} ${progress.percent}%`;
+                    }
+                }
+            );
+            this.emit(Events.GIF_EXPORT_COMPLETE);
+        } catch (err) {
+            console.error('Failed to export GIF:', err);
+            this.emit(Events.GIF_EXPORT_ERROR, err);
+        } finally {
+            this._isExportingGif = false;
+            if (this.downloadBtn) {
+                this.downloadBtn.disabled = false;
+                this.updateFormatUI(this.state.exportFormat || 'gif');
+            }
+            if (wasPlaying) {
+                this.startAnimationPreview();
+            } else {
+                await this.redrawCanvas();
+            }
+        }
+    }
+
+    /**
+     * Toggle real-time animation preview on main canvas
+     */
+    toggleAnimationPreview() {
+        if (this._isAnimationPlaying) {
+            this.stopAnimationPreview();
+        } else {
+            this.startAnimationPreview();
+        }
+    }
+
+    /**
+     * Start live word animation preview
+     */
+    startAnimationPreview() {
+        if (!this.lastPlacedWords || this.lastPlacedWords.length === 0) {
+            alert('Please generate a portrait first.');
+            return;
+        }
+
+        if (this._isAnimationPlaying) return;
+
+        this._isAnimationPlaying = true;
+        this.setState({ isAnimationPlaying: true });
+        this.emit(Events.ANIMATION_START);
+
+        const baseDurationMs = (this.state.animationDuration || 2.0) * 1000;
+        const startTime = performance.now();
+
+        const loop = (now) => {
+            if (!this._isAnimationPlaying) return;
+
+            const speed = this.state.animationSpeed || 1.0;
+            const cycleMs = baseDurationMs / Math.max(0.2, speed);
+            const elapsed = now - startTime;
+            const progress = (elapsed % cycleMs) / cycleMs;
+
+            wordAnimator.renderFrame(this.ctx, this.lastPlacedWords, progress, {
+                width: this.mainCanvas.width,
+                height: this.mainCanvas.height,
+                effect: this.state.animationEffect || 'pulse',
+                intensity: this.state.animationIntensity || 1.0,
+                colorMode: this.state.colorMode || 'source',
+                backgroundColor: '#FFFFFF',
+                scaleFactor: 1.0
+            });
+
+            if (this.state.logoImage || this.state.logoDataUrl) {
+                this.drawLogoOverlay(this.state);
+            }
+
+            this._animationRafId = requestAnimationFrame(loop);
+        };
+
+        this._animationRafId = requestAnimationFrame(loop);
+    }
+
+    /**
+     * Stop animation preview and restore clean static canvas
+     */
+    stopAnimationPreview() {
+        if (!this._isAnimationPlaying) return;
+
+        this._isAnimationPlaying = false;
+        if (this._animationRafId) {
+            cancelAnimationFrame(this._animationRafId);
+            this._animationRafId = null;
+        }
+
+        this.setState({ isAnimationPlaying: false });
+        this.emit(Events.ANIMATION_STOP);
+        this.redrawCanvas();
+    }
+
+    /**
      * Update UI format buttons and download button text
-     * @param {string} format - Active format ('jpeg' | 'png' | 'svg')
+     * @param {string} format - Active format ('jpeg' | 'png' | 'svg' | 'gif')
      */
     updateFormatUI(format = 'jpeg') {
         const formatBtns = [
             { el: this.formatJpgBtn, format: 'jpeg' },
             { el: this.formatPngBtn, format: 'png' },
-            { el: this.formatSvgBtn, format: 'svg' }
+            { el: this.formatSvgBtn, format: 'svg' },
+            { el: this.formatGifBtn, format: 'gif' }
         ];
 
         formatBtns.forEach(({ el, format: f }) => {
@@ -385,7 +530,8 @@ export class CanvasRenderer extends BaseComponent {
             const labels = {
                 jpeg: '↓ Download JPG',
                 png: '↓ Download PNG',
-                svg: '↓ Download SVG'
+                svg: '↓ Download SVG',
+                gif: '↓ Export Animated GIF'
             };
             this.downloadBtn.textContent = labels[format] || '↓ Download Image';
         }
@@ -549,6 +695,11 @@ export class CanvasRenderer extends BaseComponent {
         if (this.state.logoImage || this.state.logoDataUrl) {
             await this.drawLogoOverlay(this.state);
         }
+    }
+
+    destroy() {
+        this.stopAnimationPreview();
+        super.destroy();
     }
 }
 
